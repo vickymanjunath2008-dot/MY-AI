@@ -41,79 +41,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. SESSION STATE (Persistence)
+# 2. SESSION STATE
 # -------------------------------------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "active_key_index" not in st.session_state:
     st.session_state.active_key_index = 0
-if "active_model_name" not in st.session_state:
-    st.session_state.active_model_name = "gemini-3.8-flash"
+if "available_models" not in st.session_state:
+    st.session_state.available_models = []
 
 # -------------------------------------------------------------
-# 3. SIDEBAR: RUN SETTINGS & STORY VAULT
+# 3. SIDEBAR: RUN SETTINGS & KEY POOL
 # -------------------------------------------------------------
 with st.sidebar:
     st.title("Run settings")
 
-    # --- MODEL SELECTION ---
-    model_options = [
-        "⚡ Auto-Cascade (3.8 ➔ 3.7 ➔ 3.1 ➔ Next Key)",
-        "gemini-3.8-flash",
-        "gemini-3.7-flash",
-        "gemini-3.1-flash",
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite",
-        "gemini-1.5-flash"
-    ]
-    selected_model_option = st.selectbox("Model", model_options, index=0)
-    st.caption("Our most intelligent Flash model, engineered for deep continuity and long context.")
-
-    # --- SYSTEM INSTRUCTIONS ---
-    st.write("**System instructions**")
-    system_instruction = st.text_area(
-        label="System instructions",
-        label_visibility="collapsed",
-        placeholder="Optional tone and style instructions (e.g. Gritty Fabletown noir, grounded physical weight)...",
-        height=120,
-        value="You are MY AI: a grounded, gritty storyteller. All fantasy elements must follow strict physical reality, exhaustion, weight, and realistic consequences. Maintain absolute continuity."
-    )
-
-    # --- STORY BIBLE VAULT (DIRECT PASTE + FILE UPLOAD) ---
-    with st.expander("📖 Story Bible & Lore Vault (Paste Here)", expanded=True):
-        st.caption("Paste your characters, world rules, Jersey Devil physiology, or past story arcs:")
-        pasted_bible = st.text_area(
-            label="Story Bible Input",
-            label_visibility="collapsed",
-            placeholder="Paste your story notes, character bios, or ongoing manuscript here...",
-            height=180
-        )
-        uploaded_files = st.file_uploader("Or upload .txt / .md story files:", accept_multiple_files=True)
-        
-        file_vault_text = ""
-        if uploaded_files:
-            for uf in uploaded_files:
-                file_vault_text += f"\n--- {uf.name} ---\n" + uf.read().decode("utf-8")
-            st.success(f"Loaded {len(uploaded_files)} files into memory!")
-
-    # Combined vault lore
-    total_vault_lore = (pasted_bible + "\n" + file_vault_text).strip()
-
-    st.divider()
-
-    # --- SAFETY SETTINGS (Matched to Screenshot) ---
-    with st.expander("🛡️ Run safety settings", expanded=False):
-        st.caption("Adjust probability thresholds for content filtering.")
-        safety_levels = ["Block none", "Block few", "Block some", "Block most"]
-        harass_val = st.select_slider("Harassment", options=safety_levels, value="Block none")
-        hate_val = st.select_slider("Hate", options=safety_levels, value="Block none")
-        sex_val = st.select_slider("Sexually Explicit", options=safety_levels, value="Block none")
-        danger_val = st.select_slider("Dangerous Content", options=safety_levels, value="Block none")
-
-    st.divider()
-
     # --- 5-KEY POOL ENGINE ---
-    with st.expander("🔑 API Key Pool (5 Projects)", expanded=False):
+    with st.expander("🔑 API Key Pool (5 Projects)", expanded=True):
         key1 = st.text_input("Key 1 (Primary)", type="password")
         key2 = st.text_input("Key 2 (Backup)", type="password")
         key3 = st.text_input("Key 3 (Backup)", type="password")
@@ -125,22 +69,77 @@ with st.sidebar:
         key_modes = ["🔄 Auto-Failover (Smart)"] + [f"📌 Force Key {i+1}" for i in range(len(api_pool))]
         selected_key_mode = st.selectbox("Key Mode", key_modes if api_pool else ["No Keys Added"])
 
+    # --- AUTO-DETECT LIVE GOOGLE MODELS ---
+    live_models = []
+    if api_pool:
+        try:
+            # Query Google directly for valid models using Key 1
+            client_probe = genai.Client(api_key=api_pool[0])
+            for m in client_probe.models.list():
+                # Filter for Gemini chat models
+                name = m.name.replace("models/", "")
+                if "gemini" in name:
+                    live_models.append(name)
+            st.session_state.available_models = sorted(live_models)
+        except Exception:
+            pass
+
+    # Fallback to standard models if detection hasn't completed
+    fallback_models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"]
+    dropdown_models = st.session_state.available_models if st.session_state.available_models else fallback_models
+
+    selected_model = st.selectbox("Model (Live from your Google Account)", dropdown_models, index=0)
+    st.caption("Auto-detected directly from your Google AI Studio account.")
+
+    # --- SYSTEM INSTRUCTIONS ---
+    st.write("**System instructions**")
+    system_instruction = st.text_area(
+        label="System instructions",
+        label_visibility="collapsed",
+        placeholder="Optional tone and style instructions...",
+        height=120,
+        value="You are MY AI: a grounded, gritty storyteller following strict physical reality, consequences, and deep continuity."
+    )
+
+    # --- STORY BIBLE VAULT ---
+    with st.expander("📖 Story Bible & Lore Vault (Paste Here)", expanded=False):
+        pasted_bible = st.text_area(
+            label="Story Bible Input",
+            label_visibility="collapsed",
+            placeholder="Paste your story notes, character bios, or ongoing manuscript here...",
+            height=150
+        )
+        uploaded_files = st.file_uploader("Or upload .txt / .md story files:", accept_multiple_files=True)
+        
+        file_vault_text = ""
+        if uploaded_files:
+            for uf in uploaded_files:
+                file_vault_text += f"\n--- {uf.name} ---\n" + uf.read().decode("utf-8")
+            st.success(f"Loaded {len(uploaded_files)} files!")
+
+    total_vault_lore = (pasted_bible + "\n" + file_vault_text).strip()
+
+    st.divider()
+
+    # --- SAFETY SETTINGS ---
+    with st.expander("🛡️ Run safety settings", expanded=False):
+        safety_levels = ["Block none", "Block few", "Block some", "Block most"]
+        harass_val = st.select_slider("Harassment", options=safety_levels, value="Block none")
+        hate_val = st.select_slider("Hate", options=safety_levels, value="Block none")
+        sex_val = st.select_slider("Sexually Explicit", options=safety_levels, value="Block none")
+        danger_val = st.select_slider("Dangerous Content", options=safety_levels, value="Block none")
+
     # --- MILESTONE GAUGE (55 / 60 Turns) ---
     turn_count = len(st.session_state.messages)
     st.divider()
     st.write(f"**Memory Gauge:** {turn_count} / 60 messages")
     st.progress(min(turn_count / 60.0, 1.0))
-    
-    if turn_count >= 55:
-        st.warning("⚠️ 55-Turn Milestone Reached! Compile Chapter Manuscript to lock memory.")
-        if st.button("📖 Compile Chapter Manuscript"):
-            st.info("Compiling deep manuscript...")
 
 # -------------------------------------------------------------
 # 4. CHAT DISPLAY & STATUS BADGE
 # -------------------------------------------------------------
 st.markdown(
-    f'<div class="badge">🟢 Live: {st.session_state.active_model_name} | Active Key: #{st.session_state.active_key_index + 1}</div>', 
+    f'<div class="badge">🟢 Model: {selected_model} | Active Key: #{st.session_state.active_key_index + 1}</div>', 
     unsafe_allow_html=True
 )
 
@@ -149,10 +148,10 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # -------------------------------------------------------------
-# 5. EXECUTION & AUTO-CASCADE ENGINE
+# 5. EXECUTION ENGINE (60-Message Window)
 # -------------------------------------------------------------
 if not api_pool:
-    st.info("👈 Open the sidebar (tap > top left) and paste your API keys to begin!", icon="🔑")
+    st.info("👈 Open the sidebar (tap > top left) and paste at least Key 1 to begin!", icon="🔑")
     st.stop()
 
 if prompt := st.chat_input("Message MY AI..."):
@@ -160,7 +159,7 @@ if prompt := st.chat_input("Message MY AI..."):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Safety mappings
+    # Convert Safety Sliders
     threshold_map = {
         "Block none": types.HarmBlockThreshold.BLOCK_NONE,
         "Block few": types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
@@ -175,12 +174,6 @@ if prompt := st.chat_input("Message MY AI..."):
         types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=threshold_map[danger_val]),
     ]
 
-    # Models list
-    if "Auto-Cascade" in selected_model_option:
-        models_to_try = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.1-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-    else:
-        models_to_try = [selected_model_option]
-
     # Key Sequence
     if "Force Key" in selected_key_mode:
         target_idx = int(selected_key_mode.split("Key ")[1]) - 1
@@ -188,52 +181,47 @@ if prompt := st.chat_input("Message MY AI..."):
     else:
         keys_to_try = api_pool[st.session_state.active_key_index:] + api_pool[:st.session_state.active_key_index]
 
-    # --- 60-MESSAGE VERBATIM + STORY BIBLE PAYLOAD ---
+    # 60-Message Sliding Window
     ACTIVE_WINDOW = 60
     recent_turns = st.session_state.messages[-ACTIVE_WINDOW:]
     
     full_payload = []
-    # Inject up to 3,000 tokens of your pasted Story Bible
     if total_vault_lore:
-        full_payload.append(f"[STORY BIBLE & CORE LORE]:\n{total_vault_lore[:12000]}")
-    
+        full_payload.append(f"[STORY BIBLE & LORE]:\n{total_vault_lore[:12000]}")
     for turn in recent_turns:
         full_payload.append(f"{turn['role'].capitalize()}: {turn['content']}")
 
     success = False
     response_text = ""
+    last_error = ""
 
     with st.chat_message("assistant"):
         with st.spinner("Writing..."):
             for current_key in keys_to_try:
-                if success:
+                try:
+                    client = genai.Client(api_key=current_key)
+                    config = types.GenerateContentConfig(
+                        safety_settings=safety_settings,
+                        system_instruction=system_instruction
+                    )
+                    resp = client.models.generate_content(
+                        model=selected_model,
+                        contents=full_payload,
+                        config=config
+                    )
+                    response_text = resp.text
+                    st.session_state.active_key_index = api_pool.index(current_key)
+                    success = True
                     break
-                client = genai.Client(api_key=current_key)
-                
-                for model_candidate in models_to_try:
-                    try:
-                        config = types.GenerateContentConfig(
-                            safety_settings=safety_settings,
-                            system_instruction=system_instruction
-                        )
-                        resp = client.models.generate_content(
-                            model=model_candidate,
-                            contents=full_payload,
-                            config=config
-                        )
-                        response_text = resp.text
-                        st.session_state.active_model_name = model_candidate
-                        st.session_state.active_key_index = api_pool.index(current_key)
-                        success = True
+                except Exception as e:
+                    last_error = str(e)
+                    if "429" in last_error or "RESOURCE_EXHAUSTED" in last_error:
+                        continue
+                    else:
                         break
-                    except Exception as e:
-                        if any(err in str(e) for err in ["429", "RESOURCE_EXHAUSTED", "404", "NOT_FOUND"]):
-                            continue
-                        else:
-                            continue
 
             if success and response_text:
                 st.markdown(response_text)
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             else:
-                st.error("All cascaded models across your keys have hit limits or are unavailable.")
+                st.error(f"Error from Google: {last_error}")
