@@ -4,448 +4,741 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>MY AI</title>
+  
+  <!-- Tailwind CSS & Markdown Engine -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            void: '#000000',
+            surface: '#0d0d0d',
+            surfaceElevated: '#171717',
+            borderSubtle: '#212121',
+            borderStrong: '#2e2e2e',
+            accent: '#ffffff',
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            'slide-up': 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            'pulse-subtle': 'pulseSubtle 2.5s infinite ease-in-out',
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideUp: { '0%': { transform: 'translateY(16px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+            pulseSubtle: { '0%, 100%': { opacity: '0.35' }, '50%': { opacity: '0.85' } }
+          }
+        }
+      }
+    }
+  </script>
+
   <style>
+    /* Full Mobile Reset & Lock */
     html, body {
       height: 100%;
-      width: 100%;
+      height: 100dvh;
+      width: 100vw;
+      margin: 0;
+      padding: 0;
       overflow: hidden;
       background-color: #000000;
       color: #ECECEC;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
       -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
-    .safe-bottom {
-      padding-bottom: env(safe-area-inset-bottom, 16px);
+
+    /* Message Bubbles & Markdown Reset */
+    .prose p { margin-bottom: 0.75rem; line-height: 1.625; }
+    .prose p:last-child { margin-bottom: 0; }
+    .prose strong { color: #ffffff; font-weight: 600; }
+    .prose code { background-color: #1c1c1c; padding: 2px 5px; border-radius: 4px; font-size: 85%; font-family: monospace; }
+    .prose pre { background-color: #121212; border: 1px solid #242424; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 10px 0; }
+    
+    /* Native Momentum Scrolling */
+    .smooth-scroll {
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
-    ::-webkit-scrollbar { display: none; }
+    .smooth-scroll::-webkit-scrollbar { display: none; }
+
+    /* Input Pill Blur & Ergonomics */
+    .input-pill-shadow {
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7), 0 0 1px rgba(255, 255, 255, 0.1);
+    }
   </style>
 </head>
-<body class="flex flex-col h-full bg-black text-[#ececec]">
+<body class="flex flex-col h-[100dvh] w-screen bg-void select-none">
 
-  <!-- HEADER -->
-  <header class="h-16 border-b border-[#1f1f1f] flex items-center justify-between px-4 z-20 bg-black shrink-0">
-    <!-- Menu Button (Native SVG) -->
-    <button onclick="toggleSidebar()" class="p-2.5 text-gray-300 active:bg-[#1a1a1a] rounded-xl flex items-center justify-center">
+  <!-- ======================================================= -->
+  <!-- 1. TOP BAR (NATIVE APP HEADER)                           -->
+  <!-- ======================================================= -->
+  <header class="h-14 border-b border-borderSubtle flex items-center justify-between px-3.5 z-20 bg-void/95 backdrop-blur-xl shrink-0">
+    <!-- Left: Drawer Trigger -->
+    <button onclick="App.ui.toggleSidebar(true)" class="p-2 text-gray-300 active:scale-90 transition-transform rounded-xl">
       <svg class="w-6 h-6 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
     </button>
     
-    <!-- Status Badges -->
-    <div class="flex items-center space-x-2">
-      <span id="headerModel" class="text-xs bg-[#171717] border border-[#2d2d2d] text-green-400 px-2.5 py-1 rounded-full font-medium">gemini-3.1-flash</span>
-      <span id="turnCounter" class="text-xs bg-[#171717] border border-[#2d2d2d] text-gray-400 px-2.5 py-1 rounded-full">0/60</span>
+    <!-- Center: Model & Memory Badge -->
+    <div class="flex items-center space-x-1.5 cursor-pointer" onclick="App.ui.toggleSettings(true)">
+      <span id="displayModelBadge" class="text-xs bg-surfaceElevated border border-borderStrong text-green-400 font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+        <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+        <span id="displayModelName">gemini-2.0-flash</span>
+      </span>
+      <span id="displayTurnCounter" class="text-[11px] bg-surfaceElevated border border-borderStrong text-gray-400 px-2 py-1 rounded-full font-mono">0/60</span>
     </div>
 
-    <!-- Settings Button (Native SVG) -->
-    <button onclick="toggleSettings()" class="p-2.5 text-gray-300 active:bg-[#1a1a1a] rounded-xl flex items-center justify-center">
-      <svg class="w-6 h-6 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    <!-- Right: Options Menu -->
+    <button onclick="App.ui.toggleSettings(true)" class="p-2 text-gray-300 active:scale-90 transition-transform rounded-xl">
+      <svg class="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     </button>
   </header>
 
-  <!-- CHAT AREA -->
-  <main id="chatContainer" class="flex-1 overflow-y-auto px-4 py-4 space-y-5 w-full max-w-2xl mx-auto">
-    <div id="welcomeScreen" class="h-full flex flex-col items-center justify-center text-center space-y-3 pt-32">
-      <div class="w-14 h-14 rounded-full bg-[#171717] border border-[#262626] flex items-center justify-center shadow-lg">
+  <!-- ======================================================= -->
+  <!-- 2. CHAT FEED (PURE BORDERLESS OLED DESIGN)               -->
+  <!-- ======================================================= -->
+  <main id="chatFeed" class="flex-1 overflow-y-auto px-4 py-4 space-y-6 w-full max-w-2xl mx-auto smooth-scroll select-text">
+    <div id="emptyHero" class="h-full flex flex-col items-center justify-center text-center space-y-4 pt-28 animate-fade-in">
+      <div class="w-14 h-14 rounded-2xl bg-surfaceElevated border border-borderStrong flex items-center justify-center shadow-xl">
         <svg class="w-7 h-7 stroke-white fill-none stroke-2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
       </div>
-      <h2 class="text-xl font-semibold text-gray-200">How can I help you today?</h2>
-      <p class="text-xs text-gray-500 max-w-xs">Tap settings (top right) to paste your Gemini API Key.</p>
+      <div class="space-y-1">
+        <h2 class="text-xl font-semibold text-gray-100">Ready when you are.</h2>
+        <p class="text-xs text-gray-500 max-w-xs mx-auto">Configured with failover resilience, continuous sliding memory, and local vault intelligence.</p>
+      </div>
     </div>
   </main>
 
-  <!-- MOBILE INPUT BAR -->
-  <footer class="p-3 bg-black border-t border-[#1a1a1a] w-full max-w-2xl mx-auto safe-bottom shrink-0">
-    <div class="flex items-end bg-[#171717] border border-[#2d2d2d] rounded-3xl px-3 py-1.5 shadow-2xl focus-within:border-gray-400">
+  <!-- ======================================================= -->
+  <!-- 3. INPUT COMPONENT (ERGONOMIC NATIVE PILL)               -->
+  <!-- ======================================================= -->
+  <footer class="p-3 bg-gradient-to-t from-black via-black to-transparent w-full max-w-2xl mx-auto shrink-0 pb-[max(env(safe-area-inset-bottom),12px)]">
+    <div class="input-pill-shadow flex items-end bg-surfaceElevated border border-borderStrong rounded-3xl p-1.5 focus-within:border-gray-400 transition-colors">
       <!-- Attachment / Vault Button -->
-      <button onclick="toggleSettings()" class="p-2.5 text-gray-400 hover:text-white rounded-full">
+      <button onclick="App.ui.toggleSettings(true, 'vaultTab')" class="p-2.5 text-gray-400 active:text-white rounded-full transition-colors flex items-center justify-center">
         <svg class="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
       </button>
-      
-      <!-- Auto-expanding Input Area -->
-      <textarea id="promptInput" rows="1" placeholder="Message MY AI..." 
-        class="flex-1 bg-transparent text-base text-white placeholder-gray-500 px-3 py-2.5 outline-none resize-none max-h-36 leading-normal"></textarea>
+
+      <!-- Auto-Expanding Input (Enter creates new line, send button submits) -->
+      <textarea id="promptField" rows="1" placeholder="Message MY AI..." 
+        class="flex-1 bg-transparent text-base text-white placeholder-gray-500 px-2.5 py-2 outline-none resize-none max-h-36 leading-relaxed select-text"
+        oninput="App.ui.autoResizeTextarea(this)"></textarea>
 
       <!-- Send Button -->
-      <button id="sendBtn" onclick="sendMessage()" class="p-2.5 bg-white text-black rounded-full hover:bg-gray-200 active:scale-95 transition">
+      <button id="submitBtn" onclick="App.engine.sendUserMessage()" class="p-2.5 bg-white text-black rounded-full active:scale-90 transition-transform flex items-center justify-center disabled:opacity-20 shadow-md">
         <svg class="w-4 h-4 fill-none stroke-current stroke-[3]" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
       </button>
     </div>
   </footer>
 
-  <!-- SIDEBAR (DRAWER) -->
-  <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/70 z-30 hidden backdrop-blur-sm"></div>
-  <aside id="sidebar" class="fixed top-0 left-0 bottom-0 w-80 bg-[#0d0d0d] border-r border-[#1f1f1f] z-40 transform -translate-x-full transition-transform duration-300 flex flex-col">
-    <div class="p-4 border-b border-[#1f1f1f] flex items-center justify-between">
-      <button onclick="newChat()" class="flex-1 flex items-center justify-center space-x-2 bg-[#1a1a1a] border border-[#2d2d2d] text-white py-2.5 rounded-xl text-sm font-medium active:bg-[#222]">
+  <!-- ======================================================= -->
+  <!-- 4. SIDEBAR DRAWER (RECENTS & MULTI-ACCOUNT)             -->
+  <!-- ======================================================= -->
+  <div id="sidebarBackdrop" onclick="App.ui.toggleSidebar(false)" class="fixed inset-0 bg-black/80 z-30 hidden backdrop-blur-sm transition-opacity"></div>
+  <aside id="sidebarDrawer" class="fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-[#0a0a0a] border-r border-borderSubtle z-40 transform -translate-x-full transition-transform duration-300 ease-out flex flex-col">
+    <!-- Header -->
+    <div class="p-4 border-b border-borderSubtle flex items-center justify-between">
+      <button onclick="App.chat.startNewChat()" class="flex-1 flex items-center justify-center space-x-2 bg-surfaceElevated border border-borderStrong active:bg-[#222] text-white py-2.5 rounded-xl text-xs font-semibold tracking-wide uppercase transition">
         <span>+ New Chat</span>
       </button>
-      <button onclick="toggleSidebar()" class="ml-3 p-2 text-gray-400 hover:text-white">✕</button>
+      <button onclick="App.ui.toggleSidebar(false)" class="ml-3 p-2 text-gray-400 active:text-white text-base font-bold">✕</button>
     </div>
-    
-    <div class="flex-1 overflow-y-auto p-3 space-y-1" id="chatHistoryList"></div>
 
-    <!-- User Account Pill & Account Switcher Trigger -->
-    <div onclick="toggleSettings()" class="p-4 border-t border-[#1f1f1f] flex items-center space-x-3 bg-[#121212] cursor-pointer">
-      <div id="userAvatar" class="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">VM</div>
-      <div class="flex-1 truncate">
-        <div id="userNameDisplay" class="font-medium text-sm text-white">Vikas M</div>
-        <div class="text-[11px] text-gray-500">Tap to Switch Account / Settings</div>
+    <!-- Recents Feed -->
+    <div class="flex-1 overflow-y-auto p-3 space-y-1 smooth-scroll" id="recentChatsList"></div>
+
+    <!-- User Profile Strip -->
+    <div onclick="App.ui.toggleSettings(true, 'profileTab')" class="p-3.5 border-t border-borderSubtle flex items-center space-x-3 bg-surface cursor-pointer active:bg-surfaceElevated transition">
+      <div id="profileAvatarBadge" class="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow">VM</div>
+      <div class="flex-1 min-w-0">
+        <div id="profileNameDisplay" class="font-semibold text-sm text-white truncate">Vikas M</div>
+        <div class="text-[10px] text-gray-500 flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+          <span>Tap to Switch Accounts</span>
+        </div>
       </div>
     </div>
   </aside>
 
-  <!-- SETTINGS & ACCOUNT SWITCHER MODAL -->
-  <div id="settingsModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-end sm:items-center justify-center backdrop-blur-md">
-    <div class="bg-[#121212] border-t sm:border border-[#262626] rounded-t-3xl sm:rounded-2xl w-full max-w-lg h-[90vh] flex flex-col overflow-hidden shadow-2xl">
-      <div class="p-4 border-b border-[#1f1f1f] flex justify-between items-center shrink-0">
-        <h3 class="font-semibold text-base text-white">Settings & Accounts</h3>
-        <button onclick="toggleSettings()" class="p-2 text-gray-400 hover:text-white text-lg font-bold">✕</button>
+  <!-- ======================================================= -->
+  <!-- 5. COMPREHENSIVE SETTINGS & VAULT DRAWER                 -->
+  <!-- ======================================================= -->
+  <div id="settingsBackdrop" class="fixed inset-0 bg-black/85 z-50 hidden flex items-end sm:items-center justify-center backdrop-blur-md transition-opacity">
+    <div class="bg-[#111111] border-t sm:border border-borderStrong rounded-t-3xl sm:rounded-2xl w-full max-w-lg h-[92dvh] flex flex-col overflow-hidden shadow-2xl animate-slide-up">
+      
+      <!-- Drawer Header -->
+      <div class="p-4 border-b border-borderSubtle flex justify-between items-center shrink-0">
+        <h3 class="font-semibold text-sm tracking-wide text-white uppercase">Settings & Engine Control</h3>
+        <button onclick="App.ui.toggleSettings(false)" class="p-1.5 text-gray-400 active:text-white font-bold">✕</button>
       </div>
 
-      <div class="p-5 overflow-y-auto space-y-6 text-sm flex-1">
-        <!-- Account Switcher -->
-        <div class="bg-[#1a1a1a] p-4 rounded-xl border border-[#2d2d2d] space-y-3">
-          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Account Profile</label>
-          <div class="flex space-x-2">
-            <select id="accountSelector" onchange="switchAccountProfile(this.value)" class="flex-1 bg-[#121212] border border-[#333] rounded-lg p-2.5 text-white outline-none">
-              <option value="profile_1">Profile 1 (Vikas M)</option>
-              <option value="profile_2">Profile 2 (Creative / Alternate)</option>
-              <option value="profile_3">Profile 3 (Sandbox)</option>
-            </select>
-          </div>
-          <input id="userNameInput" type="text" placeholder="Profile Display Name" class="w-full bg-[#121212] border border-[#333] rounded-lg p-2.5 text-white outline-none">
+      <!-- Settings Content (Tabs / Sections) -->
+      <div class="p-5 overflow-y-auto space-y-6 text-sm flex-1 smooth-scroll select-text">
+        
+        <!-- Account Switcher Profile Sandbox -->
+        <div class="bg-surface p-3.5 rounded-2xl border border-borderSubtle space-y-3">
+          <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Active Account Profile</label>
+          <select id="profileSelector" onchange="App.profiles.selectProfile(this.value)" class="w-full bg-[#171717] border border-borderStrong rounded-xl p-2.5 text-xs text-white outline-none">
+            <option value="profile_1">Profile 1 (Vikas M)</option>
+            <option value="profile_2">Profile 2 (Creative Fiction)</option>
+            <option value="profile_3">Profile 3 (Development Sandbox)</option>
+          </select>
+          <input id="profileNameInput" type="text" placeholder="Profile Display Name" class="w-full bg-[#171717] border border-borderStrong rounded-xl p-2.5 text-xs text-white outline-none">
         </div>
 
         <!-- Model Selection -->
         <div class="space-y-2">
-          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Model Selection</label>
-          <select id="modelSelect" class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-3 text-white outline-none">
-            <option value="gemini-3.1-flash">gemini-3.1-flash (Recommended)</option>
-            <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (High Quota)</option>
-            <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite</option>
-            <option value="gemini-3.7-flash">gemini-3.7-flash</option>
-            <option value="gemini-3.8-flash">gemini-3.8-flash</option>
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Model Selection</label>
+            <button onclick="App.engine.probeAccountModels()" class="text-[10px] text-blue-400 active:underline">Probe Account Models ↻</button>
+          </div>
+          <select id="modelDropdown" class="w-full bg-surface border border-borderStrong rounded-xl p-3 text-xs text-white outline-none">
+            <option value="gemini-2.0-flash">gemini-2.0-flash (Recommended & Ultra-Reliable)</option>
+            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (High Daily Quota)</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash (Deep Context)</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro (Complex Reasoning)</option>
           </select>
         </div>
 
-        <!-- Temperature Slider -->
+        <!-- Thinking Level Budget Slider -->
         <div class="space-y-2">
           <div class="flex justify-between text-xs">
-            <span class="font-semibold text-gray-400 uppercase">Grounded Realism vs Creativity</span>
-            <span id="tempValue" class="text-white">0.6</span>
+            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Cognitive Thinking Level</span>
+            <span id="thinkingLevelLabel" class="text-white font-mono">Medium</span>
           </div>
-          <input id="tempSlider" type="range" min="0.1" max="1.0" step="0.05" value="0.6" class="w-full accent-white" oninput="document.getElementById('tempValue').innerText = this.value">
+          <input id="thinkingSlider" type="range" min="0" max="2" step="1" value="1" class="w-full accent-white" 
+            oninput="App.ui.updateThinkingLabel(this.value)">
+          <div class="flex justify-between text-[10px] text-gray-500">
+            <span>Low (Fast)</span>
+            <span>Medium (Balanced)</span>
+            <span>Deep (Complex Story Arcs)</span>
+          </div>
         </div>
 
-        <!-- Safety Filter -->
+        <!-- Grounded Realism Slider -->
         <div class="space-y-2">
-          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Safety Policy</label>
-          <select id="safetySelect" class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-3 text-white outline-none">
-            <option value="BLOCK_NONE">🔥 Unrestricted / Block None</option>
+          <div class="flex justify-between text-xs">
+            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Grounded Realism vs Creativity</span>
+            <span id="tempValueDisplay" class="text-white font-mono">0.60</span>
+          </div>
+          <input id="tempSlider" type="range" min="0.1" max="1.0" step="0.05" value="0.6" class="w-full accent-white" 
+            oninput="document.getElementById('tempValueDisplay').innerText = parseFloat(this.value).toFixed(2)">
+        </div>
+
+        <!-- Safety Sliders -->
+        <div class="space-y-2">
+          <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Safety Policy</label>
+          <select id="safetyDropdown" class="w-full bg-surface border border-borderStrong rounded-xl p-3 text-xs text-white outline-none">
+            <option value="BLOCK_NONE">🔥 Block None (Unfiltered Fiction, Gore & Combat)</option>
             <option value="BLOCK_ONLY_HIGH">Block Only High Risk</option>
-            <option value="BLOCK_MEDIUM_AND_ABOVE">Standard Filtering</option>
+            <option value="BLOCK_MEDIUM_AND_ABOVE">Standard Safety Rules</option>
           </select>
         </div>
 
-        <!-- Story Bible / Knowledge Vault -->
-        <div class="space-y-2">
-          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Story Bible / Knowledge Vault</label>
-          <textarea id="vaultInput" rows="4" placeholder="Paste your world lore, character sheets, or ongoing notes here..." class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-3 text-xs text-white outline-none"></textarea>
+        <!-- Lore Vault & File Upload System -->
+        <div id="vaultSection" class="space-y-2.5">
+          <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Lore Vault & Story Bible</label>
+          <textarea id="vaultTextInput" rows="4" placeholder="Paste your world rules, character physiology, and scene notes here..." 
+            class="w-full bg-surface border border-borderStrong rounded-xl p-3 text-xs text-white outline-none leading-relaxed"></textarea>
+          
+          <div class="border border-dashed border-borderStrong rounded-xl p-3 text-center bg-surface">
+            <label class="cursor-pointer block">
+              <span class="text-xs text-gray-300 block">📁 Upload Multiple .txt / .md Story Files</span>
+              <span class="text-[10px] text-gray-500">Files are read locally and saved to your account vault</span>
+              <input type="file" id="vaultFileInput" multiple accept=".txt,.md" class="hidden" onchange="App.vault.handleFileUpload(event)">
+            </label>
+            <div id="vaultFilesSummary" class="text-[11px] text-green-400 mt-2 font-mono"></div>
+          </div>
         </div>
 
-        <!-- API Key Pool -->
+        <!-- 5-Key Failover Pool -->
         <div class="space-y-2">
-          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Gemini API Key Pool (1 to 5 Keys)</label>
-          <textarea id="apiKeysInput" rows="3" placeholder="Paste your API keys here (one per line)..." class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-3 text-xs text-white outline-none"></textarea>
+          <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Gemini API Key Pool (1 to 5 Keys)</label>
+          <textarea id="apiKeyPoolInput" rows="3" placeholder="Paste your API keys here (one key per line)..." 
+            class="w-full bg-surface border border-borderStrong rounded-xl p-3 text-xs text-white font-mono outline-none"></textarea>
         </div>
 
-        <!-- Supabase Credentials -->
+        <!-- Supabase Cloud Sync -->
         <div class="space-y-2">
-          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Supabase Sync</label>
-          <input id="sbUrl" type="password" placeholder="Supabase URL" class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-lg p-2.5 text-xs text-white mb-2 outline-none">
-          <input id="sbKey" type="password" placeholder="Supabase Anon Key" class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-lg p-2.5 text-xs text-white outline-none">
+          <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Supabase Cloud Database</label>
+          <input id="supabaseUrlInput" type="password" placeholder="Supabase URL (https://xyz.supabase.co)" class="w-full bg-surface border border-borderStrong rounded-xl p-2.5 text-xs text-white mb-2 outline-none">
+          <input id="supabaseKeyInput" type="password" placeholder="Supabase Anon Public Key" class="w-full bg-surface border border-borderStrong rounded-xl p-2.5 text-xs text-white outline-none">
         </div>
+
       </div>
 
-      <div class="p-4 border-t border-[#1f1f1f] bg-[#121212] shrink-0">
-        <button onclick="saveCurrentProfileSettings()" class="w-full bg-white text-black font-semibold py-3 rounded-xl hover:bg-gray-200 active:scale-98 transition text-sm">Save Profile & Apply</button>
+      <!-- Action Button -->
+      <div class="p-4 border-t border-borderSubtle bg-void shrink-0">
+        <button onclick="App.profiles.saveActiveProfile()" class="w-full bg-white text-black font-semibold py-3 rounded-xl active:scale-98 transition text-xs tracking-wider uppercase">
+          Apply & Save Profile Configuration
+        </button>
       </div>
+
     </div>
   </div>
 
+  <!-- ======================================================= -->
+  <!-- 6. ARCHITECTURE ENGINE JAVASCRIPT                       -->
+  <!-- ======================================================= -->
   <script>
-    let currentProfile = localStorage.getItem('active_profile') || 'profile_1';
-    let messages = [];
-    let currentChatId = crypto.randomUUID();
-    let apiKeys = [];
-    let activeKeyIndex = 0;
-    let supabaseClient = null;
+    const App = {
+      state: {
+        activeProfile: 'profile_1',
+        currentChatId: crypto.randomUUID(),
+        messages: [],
+        apiKeys: [],
+        activeKeyIdx: 0,
+        supabase: null,
+        vaultPayload: '',
+      },
 
-    window.onload = () => {
-      document.getElementById('accountSelector').value = currentProfile;
-      loadProfile(currentProfile);
-    };
+      init() {
+        this.profiles.loadActiveProfile();
+        this.chat.renderRecentsList();
+      },
 
-    function switchAccountProfile(profileKey) {
-      currentProfile = profileKey;
-      localStorage.setItem('active_profile', profileKey);
-      loadProfile(profileKey);
-    }
+      ui: {
+        toggleSidebar(open) {
+          const drawer = document.getElementById('sidebarDrawer');
+          const backdrop = document.getElementById('sidebarBackdrop');
+          if (open) {
+            drawer.classList.remove('-translate-x-full');
+            backdrop.classList.remove('hidden');
+          } else {
+            drawer.classList.add('-translate-x-full');
+            backdrop.classList.add('hidden');
+          }
+        },
 
-    function loadProfile(pKey) {
-      const prefix = pKey + '_';
-      const keys = localStorage.getItem(prefix + 'keys') || '';
-      const url = localStorage.getItem(prefix + 'sb_url') || '';
-      const sbKey = localStorage.getItem(prefix + 'sb_key') || '';
-      const vault = localStorage.getItem(prefix + 'vault') || '';
-      const model = localStorage.getItem(prefix + 'model') || 'gemini-3.1-flash';
-      const temp = localStorage.getItem(prefix + 'temp') || '0.6';
-      const safety = localStorage.getItem(prefix + 'safety') || 'BLOCK_NONE';
-      const user = localStorage.getItem(prefix + 'user') || (pKey === 'profile_1' ? 'Vikas M' : 'Alt Account');
+        toggleSettings(open, scrollToId = null) {
+          const modal = document.getElementById('settingsBackdrop');
+          if (open) {
+            modal.classList.remove('hidden');
+            if (scrollToId) {
+              setTimeout(() => {
+                const el = document.getElementById(scrollToId);
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }, 150);
+            }
+          } else {
+            modal.classList.add('hidden');
+          }
+        },
 
-      document.getElementById('apiKeysInput').value = keys;
-      document.getElementById('sbUrl').value = url;
-      document.getElementById('sbKey').value = sbKey;
-      document.getElementById('vaultInput').value = vault;
-      document.getElementById('modelSelect').value = model;
-      document.getElementById('headerModel').innerText = model;
-      document.getElementById('tempSlider').value = temp;
-      document.getElementById('tempValue').innerText = temp;
-      document.getElementById('safetySelect').value = safety;
-      document.getElementById('userNameInput').value = user;
-      document.getElementById('userNameDisplay').innerText = user;
-      document.getElementById('userAvatar').innerText = user.substring(0, 2).toUpperCase();
+        updateThinkingLabel(val) {
+          const labels = ['Low (Concise)', 'Medium (Standard)', 'Deep (Maximum Scene Reasoning)'];
+          document.getElementById('thinkingLevelLabel').innerText = labels[val] || 'Medium';
+        },
 
-      apiKeys = keys.split('\n').map(k => k.trim()).filter(k => k);
-      if (url && sbKey) initSupabase(url, sbKey);
-    }
+        autoResizeTextarea(el) {
+          el.style.height = 'auto';
+          el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+        },
 
-    function saveCurrentProfileSettings() {
-      const prefix = currentProfile + '_';
-      const keys = document.getElementById('apiKeysInput').value;
-      const url = document.getElementById('sbUrl').value.trim();
-      const sbKey = document.getElementById('sbKey').value.trim();
-      const vault = document.getElementById('vaultInput').value.trim();
-      const model = document.getElementById('modelSelect').value;
-      const temp = document.getElementById('tempSlider').value;
-      const safety = document.getElementById('safetySelect').value;
-      const user = document.getElementById('userNameInput').value.trim() || 'Vikas M';
+        updateMemoryCounter(turns) {
+          const counter = document.getElementById('displayTurnCounter');
+          counter.innerText = `${turns}/60`;
+          if (turns >= 55) {
+            counter.className = "text-[11px] bg-amber-950/70 border border-amber-500/60 text-amber-300 px-2 py-1 rounded-full font-mono animate-pulse";
+          } else {
+            counter.className = "text-[11px] bg-surfaceElevated border border-borderStrong text-gray-400 px-2 py-1 rounded-full font-mono";
+          }
+        }
+      },
 
-      localStorage.setItem(prefix + 'keys', keys);
-      localStorage.setItem(prefix + 'sb_url', url);
-      localStorage.setItem(prefix + 'sb_key', sbKey);
-      localStorage.setItem(prefix + 'vault', vault);
-      localStorage.setItem(prefix + 'model', model);
-      localStorage.setItem(prefix + 'temp', temp);
-      localStorage.setItem(prefix + 'safety', safety);
-      localStorage.setItem(prefix + 'user', user);
+      profiles: {
+        selectProfile(pKey) {
+          App.state.activeProfile = pKey;
+          localStorage.setItem('my_active_profile', pKey);
+          this.loadActiveProfile();
+        },
 
-      loadProfile(currentProfile);
-      toggleSettings();
-      alert(`Settings Saved for ${user}!`);
-    }
+        loadActiveProfile() {
+          const p = App.state.activeProfile;
+          const get = (k, def = '') => localStorage.getItem(`${p}_${k}`) || def;
 
-    function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('-translate-x-full');
-      document.getElementById('sidebarOverlay').classList.toggle('hidden');
-    }
+          const keys = get('keys', '');
+          const url = get('sb_url', '');
+          const sbKey = get('sb_key', '');
+          const vault = get('vault', '');
+          const model = get('model', 'gemini-2.0-flash');
+          const temp = get('temp', '0.6');
+          const safety = get('safety', 'BLOCK_NONE');
+          const user = get('user', p === 'profile_1' ? 'Vikas M' : 'Creative Sandbox');
+          const thinking = get('thinking', '1');
 
-    function toggleSettings() {
-      document.getElementById('settingsModal').classList.toggle('hidden');
-    }
+          document.getElementById('profileSelector').value = p;
+          document.getElementById('profileNameInput').value = user;
+          document.getElementById('profileNameDisplay').innerText = user;
+          document.getElementById('profileAvatarBadge').innerText = user.substring(0, 2).toUpperCase();
 
-    function initSupabase(url, key) {
-      try {
-        supabaseClient = supabase.createClient(url, key);
-        loadChatHistory();
-      } catch (err) {
-        console.error('Supabase init error:', err);
-      }
-    }
+          document.getElementById('apiKeyPoolInput').value = keys;
+          document.getElementById('supabaseUrlInput').value = url;
+          document.getElementById('supabaseKeyInput').value = sbKey;
+          document.getElementById('vaultTextInput').value = vault;
+          document.getElementById('modelDropdown').value = model;
+          document.getElementById('displayModelName').innerText = model;
+          document.getElementById('tempSlider').value = temp;
+          document.getElementById('tempValueDisplay').innerText = parseFloat(temp).toFixed(2);
+          document.getElementById('safetyDropdown').value = safety;
+          document.getElementById('thinkingSlider').value = thinking;
+          App.ui.updateThinkingLabel(thinking);
 
-    async function loadChatHistory() {
-      if (!supabaseClient) return;
-      const { data } = await supabaseClient.from('chats').select('id, title, created_at').order('created_at', { ascending: false });
-      if (data) {
-        const list = document.getElementById('chatHistoryList');
-        list.innerHTML = '';
-        data.forEach(c => {
-          const btn = document.createElement('button');
-          btn.className = "w-full text-left px-3 py-2.5 text-xs text-gray-300 hover:bg-[#1a1a1a] rounded-xl truncate transition";
-          btn.innerText = "💬 " + (c.title || "Untitled Chat");
-          btn.onclick = () => switchChat(c.id);
-          list.appendChild(btn);
-        });
-      }
-    }
+          App.state.apiKeys = keys.split('\n').map(k => k.trim()).filter(k => k);
+          App.state.vaultPayload = vault;
 
-    function updateTurnCounter() {
-      const count = messages.length;
-      const badge = document.getElementById('turnCounter');
-      badge.innerText = `${count}/60`;
-    }
+          if (url && sbKey) {
+            try {
+              App.state.supabase = supabase.createClient(url, sbKey);
+              App.chat.syncFromSupabase();
+            } catch (err) {
+              console.warn('Supabase initialization warning:', err);
+            }
+          }
+        },
 
-    function newChat() {
-      currentChatId = crypto.randomUUID();
-      messages = [];
-      updateTurnCounter();
-      document.getElementById('chatContainer').innerHTML = `
-        <div id="welcomeScreen" class="h-full flex flex-col items-center justify-center text-center space-y-3 pt-32">
-          <div class="w-14 h-14 rounded-full bg-[#171717] border border-[#262626] flex items-center justify-center shadow-lg">
-            <svg class="w-7 h-7 stroke-white fill-none stroke-2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-          </div>
-          <h2 class="text-xl font-semibold text-gray-200">How can I help you today?</h2>
-        </div>`;
-      toggleSidebar();
-    }
+        saveActiveProfile() {
+          const p = App.state.activeProfile;
+          const set = (k, v) => localStorage.setItem(`${p}_${k}`, v);
 
-    async function switchChat(id) {
-      if (!supabaseClient) return;
-      const { data } = await supabaseClient.from('chats').select('*').eq('id', id).single();
-      if (data) {
-        currentChatId = data.id;
-        messages = data.messages || [];
-        updateTurnCounter();
-        const container = document.getElementById('chatContainer');
-        container.innerHTML = '';
-        messages.forEach(m => renderMessage(m.role, m.content));
-        toggleSidebar();
-      }
-    }
+          const keys = document.getElementById('apiKeyPoolInput').value;
+          const url = document.getElementById('supabaseUrlInput').value.trim();
+          const sbKey = document.getElementById('supabaseKeyInput').value.trim();
+          const vault = document.getElementById('vaultTextInput').value.trim();
+          const model = document.getElementById('modelDropdown').value;
+          const temp = document.getElementById('tempSlider').value;
+          const safety = document.getElementById('safetyDropdown').value;
+          const user = document.getElementById('profileNameInput').value.trim() || 'Vikas M';
+          const thinking = document.getElementById('thinkingSlider').value;
 
-    function renderMessage(role, content) {
-      const welcome = document.getElementById('welcomeScreen');
-      if (welcome) welcome.remove();
+          set('keys', keys);
+          set('sb_url', url);
+          set('sb_key', sbKey);
+          set('vault', vault);
+          set('model', model);
+          set('temp', temp);
+          set('safety', safety);
+          set('user', user);
+          set('thinking', thinking);
 
-      const container = document.getElementById('chatContainer');
-      const div = document.createElement('div');
-      div.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
+          this.loadActiveProfile();
+          App.ui.toggleSettings(false);
+          alert(`Configuration for ${user} saved successfully.`);
+        }
+      },
 
-      const bubble = document.createElement('div');
-      bubble.className = role === 'user'
-        ? 'bg-[#212121] text-white px-4 py-3 rounded-2xl max-w-[85%] text-sm'
-        : 'text-[#ececec] max-w-full text-sm leading-relaxed prose prose-invert';
+      vault: {
+        async handleFileUpload(event) {
+          const files = event.target.files;
+          if (!files || files.length === 0) return;
 
-      bubble.innerHTML = marked.parse(content);
-      div.appendChild(bubble);
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
-    }
+          let aggregateText = "";
+          for (let i = 0; i < files.length; i++) {
+            const f = files[i];
+            const text = await f.text();
+            aggregateText += `\n--- FILE: ${f.name} ---\n${text}\n`;
+          }
 
-    async function sendMessage() {
-      const input = document.getElementById('promptInput');
-      const text = input.value.trim();
-      if (!text) return;
-      if (apiKeys.length === 0) {
-        alert('Please open Settings and enter your Gemini API Key!');
-        toggleSettings();
-        return;
-      }
+          const curVault = document.getElementById('vaultTextInput').value;
+          const merged = (curVault + '\n' + aggregateText).trim();
+          document.getElementById('vaultTextInput').value = merged;
+          document.getElementById('vaultFilesSummary').innerText = `✓ Appended ${files.length} file(s) into vault`;
+        }
+      },
 
-      input.value = '';
-      input.style.height = 'auto';
+      chat: {
+        startNewChat() {
+          App.state.currentChatId = crypto.randomUUID();
+          App.state.messages = [];
+          App.ui.updateMemoryCounter(0);
 
-      messages.push({ role: 'user', content: text });
-      renderMessage('user', text);
-      updateTurnCounter();
+          const feed = document.getElementById('chatFeed');
+          feed.innerHTML = `
+            <div id="emptyHero" class="h-full flex flex-col items-center justify-center text-center space-y-4 pt-28 animate-fade-in">
+              <div class="w-14 h-14 rounded-2xl bg-surfaceElevated border border-borderStrong flex items-center justify-center shadow-xl">
+                <svg class="w-7 h-7 stroke-white fill-none stroke-2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+              </div>
+              <h2 class="text-xl font-semibold text-gray-100">Ready when you are.</h2>
+            </div>`;
+          App.ui.toggleSidebar(false);
+        },
 
-      const container = document.getElementById('chatContainer');
-      const thinkDiv = document.createElement('div');
-      thinkDiv.className = "text-xs text-gray-500 italic flex items-center space-x-2";
-      thinkDiv.innerHTML = `<span>💭 Analyzing context...</span>`;
-      container.appendChild(thinkDiv);
-      container.scrollTop = container.scrollHeight;
+        renderMessage(role, content) {
+          const hero = document.getElementById('emptyHero');
+          if (hero) hero.remove();
 
-      const prefix = currentProfile + '_';
-      const vaultLore = localStorage.getItem(prefix + 'vault') || '';
-      let payload = [];
-      if (vaultLore) {
-        payload.push({ role: 'user', parts: [{ text: `[LORE VAULT & STORY BIBLE]:\n${vaultLore}` }] });
-        payload.push({ role: 'model', parts: [{ text: "Understood. Maintaining continuity with the vault." }] });
-      }
+          const feed = document.getElementById('chatFeed');
+          const wrapper = document.createElement('div');
+          wrapper.className = role === 'user' ? 'flex justify-end animate-slide-up' : 'flex justify-start animate-slide-up';
 
-      messages.slice(-60).forEach(m => {
-        payload.push({
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.content }]
-        });
-      });
+          const bubble = document.createElement('div');
+          if (role === 'user') {
+            bubble.className = "bg-[#1f1f1f] border border-borderStrong text-white px-4 py-3 rounded-2xl max-w-[85%] text-sm shadow-md";
+            bubble.innerText = content;
+          } else {
+            bubble.className = "text-[#ececec] max-w-full text-sm leading-relaxed prose prose-invert w-full";
+            bubble.innerHTML = marked.parse(content);
+          }
 
-      const modelName = localStorage.getItem(prefix + 'model') || 'gemini-3.1-flash';
-      const tempVal = parseFloat(localStorage.getItem(prefix + 'temp') || '0.6');
-      const safetyVal = localStorage.getItem(prefix + 'safety') || 'BLOCK_NONE';
+          wrapper.appendChild(bubble);
+          feed.appendChild(wrapper);
+          feed.scrollTop = feed.scrollHeight;
+        },
 
-      let fullResponse = "";
-      let success = false;
+        saveChatLocally() {
+          const p = App.state.activeProfile;
+          const storageKey = `${p}_local_chats`;
+          let existing = JSON.parse(localStorage.getItem(storageKey) || '{}');
+          
+          if (App.state.messages.length > 0) {
+            existing[App.state.currentChatId] = {
+              id: App.state.currentChatId,
+              title: App.state.messages[0].content.substring(0, 28) + '...',
+              updatedAt: new Date().toISOString(),
+              messages: App.state.messages
+            };
+            localStorage.setItem(storageKey, JSON.stringify(existing));
+            this.renderRecentsList();
+          }
+        },
 
-      for (let i = 0; i < apiKeys.length; i++) {
-        const key = apiKeys[(activeKeyIndex + i) % apiKeys.length];
-        try {
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${key}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: payload,
-              generationConfig: { temperature: tempVal },
-              safetySettings: [
-                { category: "HARM_CATEGORY_HARASSMENT", threshold: safetyVal },
-                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: safetyVal },
-                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: safetyVal },
-                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: safetyVal }
-              ]
-            })
+        async syncToSupabase() {
+          if (!App.state.supabase || App.state.messages.length === 0) return;
+          try {
+            const title = App.state.messages[0].content.substring(0, 28) + '...';
+            await App.state.supabase.from('chats').upsert({
+              id: App.state.currentChatId,
+              title: title,
+              messages: App.state.messages,
+              custom_instructions: App.state.vaultPayload
+            });
+          } catch (err) {
+            console.warn('Background cloud sync deferred:', err);
+          }
+        },
+
+        async syncFromSupabase() {
+          if (!App.state.supabase) return;
+          try {
+            const { data } = await App.state.supabase.from('chats').select('id, title, updated_at, messages').order('updated_at', { ascending: false });
+            if (data && data.length > 0) {
+              const p = App.state.activeProfile;
+              let existing = JSON.parse(localStorage.getItem(`${p}_local_chats`) || '{}');
+              data.forEach(row => {
+                existing[row.id] = { id: row.id, title: row.title, updatedAt: row.updated_at, messages: row.messages };
+              });
+              localStorage.setItem(`${p}_local_chats`, JSON.stringify(existing));
+              this.renderRecentsList();
+            }
+          } catch (e) {}
+        },
+
+        renderRecentsList() {
+          const p = App.state.activeProfile;
+          const chats = JSON.parse(localStorage.getItem(`${p}_local_chats`) || '{}');
+          const list = document.getElementById('recentChatsList');
+          list.innerHTML = '';
+
+          const sorted = Object.values(chats).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+          sorted.forEach(c => {
+            const btn = document.createElement('button');
+            btn.className = "w-full text-left px-3 py-2.5 text-xs text-gray-300 active:bg-surfaceElevated rounded-xl truncate transition flex items-center gap-2";
+            btn.innerHTML = `<span class="opacity-40">💬</span> <span class="truncate">${c.title}</span>`;
+            btn.onclick = () => {
+              App.state.currentChatId = c.id;
+              App.state.messages = c.messages || [];
+              App.ui.updateMemoryCounter(App.state.messages.length);
+              
+              const feed = document.getElementById('chatFeed');
+              feed.innerHTML = '';
+              App.state.messages.forEach(m => App.chat.renderMessage(m.role, m.content));
+              App.ui.toggleSidebar(false);
+            };
+            list.appendChild(btn);
+          });
+        }
+      },
+
+      engine: {
+        async probeAccountModels() {
+          if (App.state.apiKeys.length === 0) {
+            alert('Please add at least one API key first.');
+            return;
+          }
+          const key = App.state.apiKeys[0];
+          try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+            const data = await res.json();
+            if (data.models) {
+              const dropdown = document.getElementById('modelDropdown');
+              dropdown.innerHTML = '';
+              data.models
+                .filter(m => m.name.includes('gemini') && m.supportedGenerationMethods.includes('generateContent'))
+                .forEach(m => {
+                  const cleanName = m.name.replace('models/', '');
+                  const opt = document.createElement('option');
+                  opt.value = cleanName;
+                  opt.innerText = cleanName;
+                  dropdown.appendChild(opt);
+                });
+              alert(`Found ${dropdown.options.length} operational models in your Google account.`);
+            }
+          } catch (e) {
+            alert('Model query failed: check key or network.');
+          }
+        },
+
+        async sendUserMessage() {
+          const input = document.getElementById('promptField');
+          const text = input.value.trim();
+          if (!text) return;
+
+          if (App.state.apiKeys.length === 0) {
+            alert('No API keys configured. Please open settings.');
+            App.ui.toggleSettings(true);
+            return;
+          }
+
+          input.value = '';
+          input.style.height = 'auto';
+
+          App.state.messages.push({ role: 'user', content: text });
+          App.chat.renderMessage('user', text);
+          App.ui.updateMemoryCounter(App.state.messages.length);
+
+          const feed = document.getElementById('chatFeed');
+          
+          // Translucent Thinking Process Container
+          const thinkContainer = document.createElement('div');
+          thinkContainer.className = "text-xs text-gray-500 italic flex items-center space-x-2 animate-pulse-subtle py-1";
+          thinkContainer.innerHTML = `
+            <svg class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" class="opacity-75"></path></svg>
+            <span>Analyzing scene context & character physiology...</span>`;
+          feed.appendChild(thinkContainer);
+          feed.scrollTop = feed.scrollHeight;
+
+          // Assemble Payload (60-Message Window + Vault)
+          const payload = [];
+          const vaultText = document.getElementById('vaultTextInput').value.trim();
+          if (vaultText) {
+            payload.push({
+              role: 'user',
+              parts: [{ text: `[LORE VAULT & STORY BIBLE RULES]:\n${vaultText}` }]
+            });
+            payload.push({
+              role: 'model',
+              parts: [{ text: "Understood. The lore vault and grounded realism will be strictly maintained." }]
+            });
+          }
+
+          // Sliding Window: Last 60 messages
+          App.state.messages.slice(-60).forEach(m => {
+            payload.push({
+              role: m.role === 'user' ? 'user' : 'model',
+              parts: [{ text: m.content }]
+            });
           });
 
-          if (!res.ok) continue;
+          const p = App.state.activeProfile;
+          const modelName = localStorage.getItem(`${p}_model`) || 'gemini-2.0-flash';
+          const tempVal = parseFloat(localStorage.getItem(`${p}_temp`) || '0.6');
+          const safetyVal = localStorage.getItem(`${p}_safety`) || 'BLOCK_NONE';
 
-          thinkDiv.remove();
-          const reader = res.body.getReader();
-          const decoder = new TextDecoder();
+          let completed = false;
+          let assistantResponse = "";
 
-          const aiDiv = document.createElement('div');
-          aiDiv.className = "text-[#ececec] text-sm leading-relaxed prose prose-invert";
-          container.appendChild(aiDiv);
+          // 2D Failover Key Pool Execution
+          for (let attempt = 0; attempt < App.state.apiKeys.length; attempt++) {
+            const keyIdx = (App.state.activeKeyIdx + attempt) % App.state.apiKeys.length;
+            const currentKey = App.state.apiKeys[keyIdx];
 
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value);
-            for (const line of chunk.split('\n')) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const json = JSON.parse(line.substring(6));
-                  const txt = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                  fullResponse += txt;
-                  aiDiv.innerHTML = marked.parse(fullResponse);
-                  container.scrollTop = container.scrollHeight;
-                } catch(e) {}
+            try {
+              const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${currentKey}`;
+              
+              const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: payload,
+                  generationConfig: {
+                    temperature: tempVal,
+                  },
+                  safetySettings: [
+                    { category: "HARM_CATEGORY_HARASSMENT", threshold: safetyVal },
+                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: safetyVal },
+                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: safetyVal },
+                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: safetyVal }
+                  ]
+                })
+              });
+
+              if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                console.warn(`Key #${keyIdx + 1} rejected with status ${res.status}:`, errData);
+                continue; // Failover to next key
               }
+
+              thinkContainer.remove();
+
+              // Word-by-word streaming container
+              const aiBubbleWrapper = document.createElement('div');
+              aiBubbleWrapper.className = "flex justify-start animate-slide-up w-full";
+              const aiTextBubble = document.createElement('div');
+              aiTextBubble.className = "text-[#ececec] max-w-full text-sm leading-relaxed prose prose-invert w-full";
+              aiBubbleWrapper.appendChild(aiTextBubble);
+              feed.appendChild(aiBubbleWrapper);
+
+              const reader = res.body.getReader();
+              const decoder = new TextDecoder();
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                    try {
+                      const parsed = JSON.parse(line.substring(6));
+                      const token = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                      assistantResponse += token;
+                      aiTextBubble.innerHTML = marked.parse(assistantResponse);
+                      feed.scrollTop = feed.scrollHeight;
+                    } catch(e) {}
+                  }
+                }
+              }
+
+              App.state.activeKeyIdx = keyIdx;
+              completed = true;
+              break;
+
+            } catch (networkErr) {
+              console.warn(`Network failover on Key #${keyIdx + 1}:`, networkErr);
             }
           }
 
-          activeKeyIndex = (activeKeyIndex + i) % apiKeys.length;
-          success = true;
-          break;
-        } catch(err) {
-          console.warn('Failover triggered...', err);
+          if (completed && assistantResponse) {
+            App.state.messages.push({ role: 'assistant', content: assistantResponse });
+            App.ui.updateMemoryCounter(App.state.messages.length);
+            App.chat.saveChatLocally();
+            App.chat.syncToSupabase();
+          } else {
+            thinkContainer.innerHTML = `<span class="text-red-400 text-xs font-mono">Error: All cascaded keys failed. Tap 'Probe Models' in settings or verify key validity.</span>`;
+          }
         }
       }
+    };
 
-      if (success) {
-        messages.push({ role: 'assistant', content: fullResponse });
-        updateTurnCounter();
-        if (supabaseClient) {
-          const title = messages[0].content.substring(0, 26) + '...';
-          await supabaseClient.from('chats').upsert({ id: currentChatId, title, messages });
-          loadChatHistory();
-        }
-      } else {
-        thinkDiv.innerHTML = `<span class="text-red-500 text-xs">Error: All API keys exhausted or failed.</span>`;
-      }
-    }
+    window.addEventListener('DOMContentLoaded', () => App.init());
   </script>
 </body>
 </html>
