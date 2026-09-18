@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>MY AI</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      width: 100vw;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #000000;
+      color: #ECECEC;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    .prose p { margin-bottom: 0.8rem; line-height: 1.65; }
+    .prose p:last-child { margin-bottom: 0; }
+    .prose strong { color: #ffffff; font-weight: 600; }
+    
+    .smooth-scroll {
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .smooth-scroll::-webkit-scrollbar { display: none; }
+
+    .input-shadow {
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8), 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body class="flex flex-col h-[100dvh] w-screen bg-black select-none">
+
+  <!-- ========================================== -->
+  <!-- 1. HEADER                                   -->
+  <!-- ========================================== -->
+  <header class="h-14 border-b border-[#1a1a1a] flex items-center justify-between px-3.5 z-20 bg-black/95 shrink-0">
+    <button onclick="UI.toggleSidebar(true)" class="p-2 text-gray-300 active:scale-95 transition rounded-xl">
+      <svg class="w-6 h-6 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
+    
+    <div class="flex items-center space-x-2 cursor-pointer" onclick="UI.toggleSettings(true)">
+      <span id="badgeModel" class="text-xs bg-[#141414] border border-[#262626] text-green-400 font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+        <span id="badgeModelText">gemini-2.0-flash</span>
+      </span>
+      <span id="badgeTurnCounter" class="text-[11px] bg-[#141414] border border-[#262626] text-gray-400 px-2 py-1 rounded-full font-mono">0/60</span>
+    </div>
+
+    <button onclick="UI.toggleSettings(true)" class="p-2 text-gray-300 active:scale-95 transition rounded-xl">
+      <svg class="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
+  </header>
+
+  <!-- ========================================== -->
+  <!-- 2. CHAT CONTAINER                          -->
+  <!-- ========================================== -->
+  <main id="chatFeed" class="flex-1 overflow-y-auto px-4 py-4 space-y-5 w-full max-w-2xl mx-auto smooth-scroll select-text">
+    <div id="heroPrompt" class="h-full flex flex-col items-center justify-center text-center space-y-3 pt-32">
+      <div class="w-13 h-13 rounded-2xl bg-[#141414] border border-[#242424] p-3 flex items-center justify-center shadow-lg">
+        <svg class="w-6 h-6 stroke-white fill-none stroke-2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+      </div>
+      <h2 class="text-xl font-medium text-gray-200">How can I help you today?</h2>
+      <p class="text-xs text-gray-500 max-w-xs">Configured for unrestricted creative writing, deep continuity, and multi-key resilience.</p>
+    </div>
+  </main>
+
+  <!-- ========================================== -->
+  <!-- 3. MOBILE INPUT (ENTER = NEW LINE)         -->
+  <!-- ========================================== -->
+  <footer class="p-3 bg-gradient-to-t from-black via-black to-transparent w-full max-w-2xl mx-auto shrink-0 pb-[max(env(safe-area-inset-bottom),12px)]">
+    <!-- Attachment Banner (Appears when files are attached) -->
+    <div id="attachedFileBanner" class="hidden text-xs bg-[#141414] border border-[#282828] text-gray-300 px-3 py-1.5 rounded-xl mb-2 flex items-center justify-between">
+      <span id="attachedFileName" class="truncate font-mono"></span>
+      <button onclick="Chat.clearAttachment()" class="text-gray-400 hover:text-white ml-2 font-bold">✕</button>
+    </div>
+
+    <div class="input-shadow flex items-end bg-[#171717] border border-[#282828] rounded-3xl p-1.5 focus-within:border-gray-500 transition">
+      <!-- Paperclip (Native Android File Picker) -->
+      <label class="p-2.5 text-gray-400 active:text-white rounded-full transition cursor-pointer flex items-center justify-center">
+        <svg class="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        <input type="file" id="chatFileInput" accept=".txt,.md" class="hidden" onchange="Chat.handleDirectAttachment(event)">
+      </label>
+
+      <!-- Auto-Expanding Textarea (Enter = New Line) -->
+      <textarea id="promptField" rows="1" placeholder="Message MY AI..." 
+        class="flex-1 bg-transparent text-base text-white placeholder-gray-500 px-2.5 py-2 outline-none resize-none max-h-36 leading-normal select-text"
+        oninput="UI.autoResize(this)"></textarea>
+
+      <!-- Send Button -->
+      <button id="sendBtn" onclick="Chat.send()" class="p-2.5 bg-white text-black rounded-full active:scale-95 transition flex items-center justify-center shadow">
+        <svg class="w-4 h-4 fill-none stroke-current stroke-[3]" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+      </button>
+    </div>
+  </footer>
+
+  <!-- ========================================== -->
+  <!-- 4. SIDEBAR (RECENTS & MULTI-ACCOUNT)       -->
+  <!-- ========================================== -->
+  <div id="sidebarBackdrop" onclick="UI.toggleSidebar(false)" class="fixed inset-0 bg-black/80 z-30 hidden backdrop-blur-sm"></div>
+  <aside id="sidebarDrawer" class="fixed top-0 left-0 bottom-0 w-80 max-w-[85vw] bg-[#0c0c0c] border-r border-[#1a1a1a] z-40 transform -translate-x-full transition-transform duration-300 ease-out flex flex-col">
+    <div class="p-4 border-b border-[#1a1a1a] flex items-center justify-between">
+      <button onclick="Chat.newChat()" class="flex-1 flex items-center justify-center space-x-2 bg-[#171717] border border-[#262626] active:bg-[#222] text-white py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider">
+        <span>+ New Chat</span>
+      </button>
+      <button onclick="UI.toggleSidebar(false)" class="ml-3 p-2 text-gray-400 active:text-white text-base">✕</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-3 space-y-1 smooth-scroll" id="recentChatsList"></div>
+
+    <div onclick="UI.toggleSettings(true)" class="p-3.5 border-t border-[#1a1a1a] flex items-center space-x-3 bg-[#111] cursor-pointer active:bg-[#1a1a1a]">
+      <div id="profileAvatar" class="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">VM</div>
+      <div class="flex-1 min-w-0">
+        <div id="profileNameDisplay" class="font-semibold text-sm text-white truncate">Vikas M</div>
+        <div class="text-[10px] text-gray-500">Tap for Settings & Keys</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========================================== -->
+  <!-- 5. COMPREHENSIVE SETTINGS & VAULT DRAWER   -->
+  <!-- ========================================== -->
+  <div id="settingsBackdrop" class="fixed inset-0 bg-black/85 z-50 hidden flex items-end sm:items-center justify-center backdrop-blur-md">
+    <div class="bg-[#111111] border-t sm:border border-[#262626] rounded-t-3xl sm:rounded-2xl w-full max-w-lg h-[92dvh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="p-4 border-b border-[#1f1f1f] flex justify-between items-center shrink-0">
+        <h3 class="font-semibold text-sm text-white uppercase tracking-wider">Settings & Engine Control</h3>
+        <button onclick="UI.toggleSettings(false)" class="p-1.5 text-gray-400 active:text-white font-bold text-base">✕</button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-6 text-sm flex-1 smooth-scroll select-text">
+        <!-- Account Switcher Profile -->
+        <div class="bg-[#171717] p-3.5 rounded-2xl border border-[#282828] space-y-3">
+          <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Account Profile</label>
+          <select id="profileSelect" onchange="Profile.switch(this.value)" class="w-full bg-[#111] border border-[#333] rounded-xl p-2.5 text-xs text-white outline-none">
+            <option value="p1">Profile 1 (Vikas M)</option>
+            <option value="p2">Profile 2 (Creative / Romance)</option>
+            <option value="p3">Profile 3 (Alternate Sandbox)</option>
+          </select>
+          <input id="userNameInput" type="text" placeholder="Profile Display Name" class="w-full bg-[#111] border border-[#333] rounded-xl p-2.5 text-xs text-white outline-none">
+        </div>
+
+        <!-- Model Selection + Auto Fetch Button -->
+        <div class="space-y-2">
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Model Selection</label>
+            <button onclick="Engine.fetchLiveModels()" class="text-[10px] text-blue-400 active:underline">Fetch Working Models ↻</button>
+          </div>
+          <select id="modelDropdown" class="w-full bg-[#171717] border border-[#282828] rounded-xl p-3 text-xs text-white outline-none">
+            <option value="gemini-2.0-flash">gemini-2.0-flash (Recommended & Stable)</option>
+            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite (500 RPD Quota)</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+          </select>
+        </div>
+
+        <!-- Thinking Level Slider -->
+        <div class="space-y-2">
+          <div class="flex justify-between text-xs">
+            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Cognitive Thinking Level</span>
+            <span id="thinkingLevelLabel" class="text-white font-mono">Medium</span>
+          </div>
+          <input id="thinkingSlider" type="range" min="0" max="2" step="1" value="1" class="w-full accent-white" 
+            oninput="UI.updateThinkingLabel(this.value)">
+          <div class="flex justify-between text-[10px] text-gray-500 font-mono">
+            <span>Low (Instant)</span>
+            <span>Medium (Default)</span>
+            <span>High (Deep Arcs)</span>
+          </div>
+        </div>
+
+        <!-- Grounded Realism Slider -->
+        <div class="space-y-2">
+          <div class="flex justify-between text-xs">
+            <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Creativity (Temperature)</span>
+            <span id="tempDisplay" class="text-white font-mono">0.60</span>
+          </div>
+          <input id="tempSlider" type="range" min="0.1" max="1.0" step="0.05" value="0.6" class="w-full accent-white" 
+            oninput="document.getElementById('tempDisplay').innerText = parseFloat(this.value).toFixed(2)">
+        </div>
+
+        <!-- Safety Filter (Hardcoded to BLOCK_NONE) -->
+        <div class="space-y-2">
+          <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Safety Policy</label>
+          <div class="w-full bg-[#171717] border border-[#282828] rounded-xl p-3 text-xs text-green-400 font-mono">
+            🔥 BLOCK_NONE (Completely Uncensored Romance & Adult Fiction Active)
+          </div>
+        </div>
+
+        <!-- Lore Vault (Direct Paste + Multi-File Upload) -->
+        <div class="space-y-2.5">
+          <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Lore Vault & Story Bible</label>
+          <textarea id="vaultTextInput" rows="4" placeholder="Paste your characters, world rules, Jersey Devil physiology, or past arcs here..." 
+            class="w-full bg-[#171717] border border-[#282828] rounded-xl p-3 text-xs text-white outline-none leading-relaxed"></textarea>
+          
+          <div class="border border-dashed border-[#333] rounded-xl p-3 text-center bg-[#171717]">
+            <label class="cursor-pointer block">
+              <span class="text-xs text-gray-300 block">📁 Upload Multiple .txt / .md Story Files</span>
+              <span class="text-[10px] text-gray-500">Files are merged into your Lore Vault permanently</span>
+              <input type="file" id="vaultMultiUpload" multiple accept=".txt,.md" class="hidden" onchange="Vault.uploadFiles(event)">
+            </label>
+            <div id="vaultUploadStatus" class="text-[11px] text-green-400 mt-2 font-mono"></div>
+          </div>
+        </div>
+
+        <!-- Gemini 5-Key Pool -->
+        <div class="space-y-2">
+          <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Gemini API Key Pool (1 to 5 Keys)</label>
+          <textarea id="keyPoolInput" rows="3" placeholder="Paste your API keys here (one key per line)..." 
+            class="w-full bg-[#171717] border border-[#282828] rounded-xl p-3 text-xs text-white font-mono outline-none"></textarea>
+        </div>
+
+        <!-- Supabase Credentials -->
+        <div class="space-y-2">
+          <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Supabase Cloud Sync</label>
+          <input id="sbUrlInput" type="password" placeholder="Supabase URL (https://xyz.supabase.co)" class="w-full bg-[#171717] border border-[#282828] rounded-xl p-2.5 text-xs text-white mb-2 outline-none">
+          <input id="sbKeyInput" type="password" placeholder="Supabase Anon Key" class="w-full bg-[#171717] border border-[#282828] rounded-xl p-2.5 text-xs text-white outline-none">
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-[#1f1f1f] bg-black shrink-0">
+        <button onclick="Profile.save()" class="w-full bg-white text-black font-semibold py-3 rounded-xl active:scale-98 transition text-xs uppercase tracking-wider">
+          Save Configuration & Apply
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 6. APPLICATION JAVASCRIPT ENGINE           -->
+  <!-- ========================================== -->
+  <script>
+    const App = {
+      profile: localStorage.getItem('active_prof') || 'p1',
+      chatId: crypto.randomUUID(),
+      messages: [],
+      keys: [],
+      activeKeyIndex: 0,
+      supabase: null,
+      directAttachmentText: "",
+
+      init() {
+        Profile.load(this.profile);
+        Chat.renderRecents();
+      }
+    };
+
+    const UI = {
+      toggleSidebar(show) {
+        const d = document.getElementById('sidebarDrawer');
+        const b = document.getElementById('sidebarBackdrop');
+        d.classList.toggle('-translate-x-full', !show);
+        b.classList.toggle('hidden', !show);
+      },
+      toggleSettings(show) {
+        document.getElementById('settingsBackdrop').classList.toggle('hidden', !show);
+      },
+      updateThinkingLabel(v) {
+        const l = ['Low (Instant)', 'Medium (Balanced)', 'High (Deep Continuity & Arcs)'];
+        document.getElementById('thinkingLevelLabel').innerText = l[v] || 'Medium';
+      },
+      autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+      },
+      updateTurnCounter(cnt) {
+        const b = document.getElementById('badgeTurnCounter');
+        b.innerText = `${cnt}/60`;
+        if (cnt >= 55) {
+          b.className = "text-[11px] bg-amber-950/70 border border-amber-500/60 text-amber-300 px-2 py-1 rounded-full font-mono animate-pulse";
+        } else {
+          b.className = "text-[11px] bg-[#141414] border border-[#262626] text-gray-400 px-2 py-1 rounded-full font-mono";
+        }
+      }
+    };
+
+    const Profile = {
+      switch(pKey) {
+        App.profile = pKey;
+        localStorage.setItem('active_prof', pKey);
+        this.load(pKey);
+      },
+      load(pKey) {
+        const get = (k, def = '') => localStorage.getItem(`${pKey}_${k}`) || def;
+        const keys = get('keys', '');
+        const url = get('sb_url', '');
+        const sbKey = get('sb_key', '');
+        const vault = get('vault', '');
+        const model = get('model', 'gemini-2.0-flash');
+        const temp = get('temp', '0.6');
+        const user = get('user', pKey === 'p1' ? 'Vikas M' : 'Alt Account');
+        const think = get('think', '1');
+
+        document.getElementById('profileSelect').value = pKey;
+        document.getElementById('userNameInput').value = user;
+        document.getElementById('profileNameDisplay').innerText = user;
+        document.getElementById('profileAvatar').innerText = user.substring(0, 2).toUpperCase();
+
+        document.getElementById('keyPoolInput').value = keys;
+        document.getElementById('sbUrlInput').value = url;
+        document.getElementById('sbKeyInput').value = sbKey;
+        document.getElementById('vaultTextInput').value = vault;
+        document.getElementById('modelDropdown').value = model;
+        document.getElementById('badgeModelText').innerText = model;
+        document.getElementById('tempSlider').value = temp;
+        document.getElementById('tempDisplay').innerText = parseFloat(temp).toFixed(2);
+        document.getElementById('thinkingSlider').value = think;
+        UI.updateThinkingLabel(think);
+
+        App.keys = keys.split('\n').map(k => k.trim()).filter(k => k);
+        if (url && sbKey) {
+          try {
+            App.supabase = supabase.createClient(url, sbKey);
+          } catch(e) {}
+        }
+      },
+      save() {
+        const p = App.profile;
+        const set = (k, v) => localStorage.setItem(`${p}_${k}`, v);
+
+        const keys = document.getElementById('keyPoolInput').value;
+        const url = document.getElementById('sbUrlInput').value.trim();
+        const sbKey = document.getElementById('sbKeyInput').value.trim();
+        const vault = document.getElementById('vaultTextInput').value.trim();
+        const model = document.getElementById('modelDropdown').value;
+        const temp = document.getElementById('tempSlider').value;
+        const user = document.getElementById('userNameInput').value.trim() || 'Vikas M';
+        const think = document.getElementById('thinkingSlider').value;
+
+        set('keys', keys);
+        set('sb_url', url);
+        set('sb_key', sbKey);
+        set('vault', vault);
+        set('model', model);
+        set('temp', temp);
+        set('user', user);
+        set('think', think);
+
+        this.load(p);
+        UI.toggleSettings(false);
+        alert(`Settings saved for ${user}!`);
+      }
+    };
+
+    const Vault = {
+      async uploadFiles(e) {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+        let aggregate = "";
+        for (let i = 0; i < files.length; i++) {
+          const txt = await files[i].text();
+          aggregate += `\n--- FILE: ${files[i].name} ---\n${txt}\n`;
+        }
+        const current = document.getElementById('vaultTextInput').value;
+        document.getElementById('vaultTextInput').value = (current + '\n' + aggregate).trim();
+        document.getElementById('vaultUploadStatus').innerText = `✓ Merged ${files.length} file(s) into vault`;
+      }
+    };
+
+    const Engine = {
+      async fetchLiveModels() {
+        if (App.keys.length === 0) {
+          alert('Add at least one Gemini key in settings first!');
+          return;
+        }
+        try {
+          const res = await fetch('/api/models', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: App.keys[0] })
+          });
+          const data = await res.json();
+          if (data.models && data.models.length > 0) {
+            const dd = document.getElementById('modelDropdown');
+            dd.innerHTML = '';
+            data.models.forEach(m => {
+              const opt = document.createElement('option');
+              opt.value = m;
+              opt.innerText = m;
+              dd.appendChild(opt);
+            });
+            alert(`Found ${data.models.length} working models on your account!`);
+          } else {
+            alert('No models returned. Please check key validity.');
+          }
+        } catch(e) {
+          alert('Failed to connect to /api/models. Check network.');
+        }
+      }
+    };
+
+    const Chat = {
+      async handleDirectAttachment(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const text = await file.text();
+        App.directAttachmentText = `\n--- ATTACHED FILE: ${file.name} ---\n${text}\n`;
+        document.getElementById('attachedFileName').innerText = `📎 ${file.name}`;
+        document.getElementById('attachedFileBanner').classList.remove('hidden');
+      },
+      clearAttachment() {
+        App.directAttachmentText = "";
+        document.getElementById('chatFileInput').value = "";
+        document.getElementById('attachedFileBanner').classList.add('hidden');
+      },
+      newChat() {
+        App.chatId = crypto.randomUUID();
+        App.messages = [];
+        this.clearAttachment();
+        UI.updateTurnCounter(0);
+        document.getElementById('chatFeed').innerHTML = `
+          <div id="heroPrompt" class="h-full flex flex-col items-center justify-center text-center space-y-3 pt-32">
+            <div class="w-13 h-13 rounded-2xl bg-[#141414] border border-[#242424] p-3 flex items-center justify-center shadow-lg">
+              <svg class="w-6 h-6 stroke-white fill-none stroke-2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+            </div>
+            <h2 class="text-xl font-medium text-gray-200">How can I help you today?</h2>
+          </div>`;
+        UI.toggleSidebar(false);
+      },
+      renderMessage(role, text) {
+        const hero = document.getElementById('heroPrompt');
+        if (hero) hero.remove();
+        const feed = document.getElementById('chatFeed');
+        const wrap = document.createElement('div');
+        wrap.className = role === 'user' ? 'flex justify-end' : 'flex justify-start w-full';
+        const b = document.createElement('div');
+        if (role === 'user') {
+          b.className = "bg-[#212121] text-white px-4 py-3 rounded-2xl max-w-[85%] text-sm";
+          b.innerText = text;
+        } else {
+          b.className = "text-[#ececec] text-sm leading-relaxed prose prose-invert w-full";
+          b.innerHTML = marked.parse(text);
+        }
+        wrap.appendChild(b);
+        feed.appendChild(wrap);
+        feed.scrollTop = feed.scrollHeight;
+      },
+      saveLocally() {
+        const p = App.profile;
+        const key = `${p}_local_chats`;
+        let chats = JSON.parse(localStorage.getItem(key) || '{}');
+        if (App.messages.length > 0) {
+          chats[App.chatId] = {
+            id: App.chatId,
+            title: App.messages[0].content.substring(0, 26) + '...',
+            updatedAt: new Date().toISOString(),
+            messages: App.messages
+          };
+          localStorage.setItem(key, JSON.stringify(chats));
+          this.renderRecents();
+        }
+      },
+      async syncSupabase() {
+        if (!App.supabase || App.messages.length === 0) return;
+        try {
+          await App.supabase.from('chats').upsert({
+            id: App.chatId,
+            title: App.messages[0].content.substring(0, 26) + '...',
+            messages: App.messages,
+            custom_instructions: localStorage.getItem(`${App.profile}_vault`) || ''
+          });
+        } catch(e) {}
+      },
+      renderRecents() {
+        const p = App.profile;
+        const chats = JSON.parse(localStorage.getItem(`${p}_local_chats`) || '{}');
+        const list = document.getElementById('recentChatsList');
+        list.innerHTML = '';
+        Object.values(chats).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).forEach(c => {
+          const btn = document.createElement('button');
+          btn.className = "w-full text-left px-3 py-2.5 text-xs text-gray-300 active:bg-[#1a1a1a] rounded-xl truncate transition flex items-center gap-2";
+          btn.innerHTML = `<span class="opacity-40">💬</span> <span class="truncate">${c.title}</span>`;
+          btn.onclick = () => {
+            App.chatId = c.id;
+            App.messages = c.messages || [];
+            UI.updateTurnCounter(App.messages.length);
+            const feed = document.getElementById('chatFeed');
+            feed.innerHTML = '';
+            App.messages.forEach(m => this.renderMessage(m.role, m.content));
+            UI.toggleSidebar(false);
+          };
+          list.appendChild(btn);
+        });
+      },
+      async send() {
+        const input = document.getElementById('promptField');
+        let text = input.value.trim();
+        if (!text && !App.directAttachmentText) return;
+
+        if (App.keys.length === 0) {
+          alert('Please open settings and enter your Gemini API Key!');
+          UI.toggleSettings(true);
+          return;
+        }
+
+        if (App.directAttachmentText) {
+          text = `${App.directAttachmentText}\nUser prompt: ${text}`;
+          this.clearAttachment();
+        }
+
+        input.value = '';
+        input.style.height = 'auto';
+
+        App.messages.push({ role: 'user', content: text });
+        this.renderMessage('user', text);
+        UI.updateTurnCounter(App.messages.length);
+
+        const feed = document.getElementById('chatFeed');
+        
+        // Translucent Thinking Spinner
+        const think = document.createElement('div');
+        think.className = "text-xs text-gray-500 italic flex items-center space-x-2 py-1";
+        think.innerHTML = `
+          <svg class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" class="opacity-75"></path></svg>
+          <span>Analyzing context & continuity...</span>`;
+        feed.appendChild(think);
+        feed.scrollTop = feed.scrollHeight;
+
+        const p = App.profile;
+        const vault = localStorage.getItem(`${p}_vault`) || '';
+        const model = localStorage.getItem(`${p}_model`) || 'gemini-2.0-flash';
+        const temp = parseFloat(localStorage.getItem(`${p}_temp`) || '0.6');
+        const thinkBudget = [0, 1024, 2048][parseInt(localStorage.getItem(`${p}_think`) || '1', 10)];
+
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: App.messages,
+              apiKeys: App.keys,
+              model: model,
+              temperature: temp,
+              safetyLevel: 'BLOCK_NONE',
+              vaultLore: vault,
+              thinkingBudget: thinkBudget
+            })
+          });
+
+          think.remove();
+
+          if (!res.ok) {
+            alert('Server error connecting to /api/chat. Check Vercel logs.');
+            return;
+          }
+
+          const wrap = document.createElement('div');
+          wrap.className = "flex justify-start w-full";
+          const aiBubble = document.createElement('div');
+          aiBubble.className = "text-[#ececec] text-sm leading-relaxed prose prose-invert w-full";
+          wrap.appendChild(aiBubble);
+          feed.appendChild(wrap);
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let fullAI = "";
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            for (const line of chunk.split('\n')) {
+              if (line.startsWith('data: ')) {
+                const dataStr = line.substring(6).trim();
+                if (dataStr === '[DONE]') break;
+                try {
+                  const parsed = JSON.parse(dataStr);
+                  if (parsed.text) {
+                    fullAI += parsed.text;
+                    aiBubble.innerHTML = marked.parse(fullAI);
+                    feed.scrollTop = feed.scrollHeight;
+                  }
+                  if (parsed.activeKeyIndex !== undefined) {
+                    App.activeKeyIndex = parsed.activeKeyIndex;
+                  }
+                } catch(e) {}
+              }
+            }
+          }
+
+          if (fullAI) {
+            App.messages.push({ role: 'assistant', content: fullAI });
+            UI.updateTurnCounter(App.messages.length);
+            this.saveLocally();
+            this.syncSupabase();
+          }
+
+        } catch (err) {
+          think.innerHTML = `<span class="text-red-400 text-xs font-mono">Error: Connection lost or request failed.</span>`;
+        }
+      }
+    };
+
+    window.addEventListener('DOMContentLoaded', () => App.init());
+  </script>
+</body>
+</html>
