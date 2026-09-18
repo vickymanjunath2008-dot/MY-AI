@@ -1,5 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
-
 export const config = {
   runtime: "nodejs",
 };
@@ -15,20 +13,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-    const response = await ai.models.list();
-    
+    // Direct Google API call from Vercel backend (No CORS issues)
+    const googleRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`);
+    const data = await googleRes.json();
+
+    if (!googleRes.ok) {
+      return res.status(googleRes.status).json({ error: data.error?.message || "Failed to query Google." });
+    }
+
     const availableModels = [];
-    for await (const m of response) {
-      const name = m.name.replace("models/", "");
-      // Only include Gemini models that generate content
-      if (name.includes("gemini")) {
-        availableModels.push(name);
-      }
+    if (data.models) {
+      data.models.forEach((m) => {
+        const name = m.name.replace("models/", "");
+        if (name.includes("gemini") && m.supportedGenerationMethods?.includes("generateContent")) {
+          availableModels.push(name);
+        }
+      });
     }
 
     return res.status(200).json({ models: availableModels.sort() });
   } catch (err) {
-    return res.status(500).json({ error: err.message || "Failed to fetch models." });
+    return res.status(500).json({ error: err.message || "Internal server error." });
   }
 }
