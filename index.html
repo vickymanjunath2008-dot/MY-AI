@@ -1,1 +1,387 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MY AI</title>
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Markdown Parser -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+  <style>
+    body {
+      background-color: #000000;
+      color: #ECECEC;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Smooth Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
+    /* Animated Thinking Pulse */
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.8; }
+    }
+    .animate-pulse-slow { animation: pulse-slow 2s infinite ease-in-out; }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-black text-[#ececec]">
+
+  <!-- TOP HEADER -->
+  <header class="h-14 border-b border-[#1f1f1f] flex items-center justify-between px-4 z-10 bg-black/80 backdrop-blur-md">
+    <button onclick="toggleSidebar()" class="p-2 hover:bg-[#1a1a1a] rounded-lg transition">
+      <i data-lucide="menu" class="w-5 h-5 text-gray-400"></i>
+    </button>
+    <div class="flex items-center space-x-2">
+      <span class="font-semibold tracking-wide text-sm">MY AI</span>
+      <span id="modelBadge" class="text-[10px] bg-[#1a1a1a] text-green-400 border border-green-900/40 px-2 py-0.5 rounded-full">gemini-2.5-flash</span>
+    </div>
+    <button onclick="toggleSettings()" class="p-2 hover:bg-[#1a1a1a] rounded-lg transition">
+      <i data-lucide="settings" class="w-5 h-5 text-gray-400"></i>
+    </button>
+  </header>
+
+  <!-- MAIN CHAT CONTAINER -->
+  <main id="chatContainer" class="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-3xl mx-auto w-full">
+    <!-- Welcome Greeting -->
+    <div id="welcomeScreen" class="h-full flex flex-col items-center justify-center text-center space-y-4 pt-20">
+      <div class="w-12 h-12 rounded-full bg-[#171717] border border-[#262626] flex items-center justify-center">
+        <i data-lucide="sparkles" class="w-6 h-6 text-white"></i>
+      </div>
+      <h2 class="text-xl font-medium text-gray-200">How can I help you today?</h2>
+    </div>
+  </main>
+
+  <!-- BOTTOM INPUT BAR (ChatGPT Style) -->
+  <footer class="p-4 bg-black/90 backdrop-blur-md max-w-3xl mx-auto w-full">
+    <div class="relative flex items-end bg-[#171717] border border-[#262626] rounded-3xl p-2 shadow-2xl focus-within:border-gray-500 transition">
+      <button class="p-2 text-gray-400 hover:text-white transition rounded-full">
+        <i data-lucide="plus" class="w-5 h-5"></i>
+      </button>
+      
+      <!-- Auto-Expanding Textarea (Enter = New Line) -->
+      <textarea id="promptInput" rows="1" placeholder="Message MY AI..." 
+        class="flex-1 bg-transparent text-sm text-white placeholder-gray-500 px-3 py-2 outline-none resize-none max-h-32 leading-relaxed"
+        oninput="autoResize(this)" onkeydown="handleKeyDown(event)"></textarea>
+
+      <button id="sendBtn" onclick="sendMessage()" class="p-2 bg-white text-black rounded-full hover:bg-gray-200 transition disabled:opacity-20">
+        <i data-lucide="arrow-up" class="w-4 h-4 stroke-[3]"></i>
+      </button>
+    </div>
+  </footer>
+
+  <!-- SIDEBAR (DRAWER) -->
+  <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 z-20 hidden backdrop-blur-sm transition-opacity"></div>
+  <aside id="sidebar" class="fixed top-0 left-0 bottom-0 w-72 bg-[#0a0a0a] border-r border-[#1a1a1a] z-30 transform -translate-x-full transition-transform duration-300 flex flex-col">
+    <div class="p-4 flex items-center justify-between border-b border-[#1a1a1a]">
+      <button onclick="newChat()" class="flex-1 flex items-center space-x-2 bg-[#171717] border border-[#262626] hover:bg-[#222] text-white px-3 py-2 rounded-xl text-sm font-medium transition">
+        <i data-lucide="plus" class="w-4 h-4"></i>
+        <span>New Chat</span>
+      </button>
+      <button onclick="toggleSidebar()" class="ml-2 p-2 text-gray-400 hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    
+    <div class="flex-1 overflow-y-auto p-3 space-y-1" id="chatHistoryList">
+      <!-- Chat history items injected here -->
+    </div>
+
+    <div class="p-4 border-t border-[#1a1a1a] flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">VM</div>
+      <div class="flex-1 text-xs">
+        <div class="font-medium text-white">Vikas M</div>
+        <div class="text-gray-500">Free Tier</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settingsModal" class="fixed inset-0 bg-black/80 z-40 hidden flex items-center justify-center p-4 backdrop-blur-md">
+    <div class="bg-[#121212] border border-[#262626] rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="p-4 border-b border-[#1f1f1f] flex justify-between items-center">
+        <h3 class="font-semibold text-white">App Settings</h3>
+        <button onclick="toggleSettings()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      
+      <div class="p-4 overflow-y-auto space-y-5 text-sm">
+        <!-- API Keys Box -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Gemini API Key Pool (5 Keys)</label>
+          <textarea id="apiKeysInput" rows="3" placeholder="Paste your 5 keys here (one per line)..." class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-3 text-xs text-white outline-none focus:border-gray-400"></textarea>
+        </div>
+
+        <!-- Supabase Keys -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Supabase Cloud Sync</label>
+          <input id="sbUrl" type="password" placeholder="Project URL (https://xxx.supabase.co)" class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-2.5 text-xs text-white mb-2 outline-none">
+          <input id="sbKey" type="password" placeholder="Anon Key (eyJhbGci...)" class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-2.5 text-xs text-white outline-none">
+        </div>
+
+        <!-- System Instructions -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Custom System Instructions</label>
+          <textarea id="sysPrompt" rows="3" placeholder="You are a helpful, coherent assistant..." class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-3 text-xs text-white outline-none"></textarea>
+        </div>
+
+        <button onclick="saveSettings()" class="w-full bg-white text-black font-medium py-2.5 rounded-xl hover:bg-gray-200 transition">Save & Sync</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION ENGINE (Pure JS) -->
+  <script>
+    lucide.createIcons();
+
+    // App State
+    let messages = [];
+    let currentChatId = crypto.randomUUID();
+    let apiKeys = [];
+    let activeKeyIndex = 0;
+    let supabaseClient = null;
+
+    // Load Local Storage on startup
+    window.onload = () => {
+      const savedKeys = localStorage.getItem('my_ai_keys');
+      const savedUrl = localStorage.getItem('my_sb_url');
+      const savedSbKey = localStorage.getItem('my_sb_key');
+      const savedPrompt = localStorage.getItem('my_sys_prompt');
+
+      if (savedKeys) {
+        document.getElementById('apiKeysInput').value = savedKeys;
+        apiKeys = savedKeys.split('\n').map(k => k.trim()).filter(k => k);
+      }
+      if (savedUrl && savedSbKey) {
+        document.getElementById('sbUrl').value = savedUrl;
+        document.getElementById('sbKey').value = savedSbKey;
+        initSupabase(savedUrl, savedSbKey);
+      }
+      if (savedPrompt) {
+        document.getElementById('sysPrompt').value = savedPrompt;
+      }
+    };
+
+    function autoResize(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
+    function handleKeyDown(e) {
+      // Enter without Shift creates a new line on mobile, exactly as desired
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function toggleSidebar() {
+      const sb = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sb.classList.toggle('-translate-x-full');
+      overlay.classList.toggle('hidden');
+    }
+
+    function toggleSettings() {
+      document.getElementById('settingsModal').classList.toggle('hidden');
+    }
+
+    function saveSettings() {
+      const keysText = document.getElementById('apiKeysInput').value;
+      const url = document.getElementById('sbUrl').value.trim();
+      const key = document.getElementById('sbKey').value.trim();
+      const prompt = document.getElementById('sysPrompt').value.trim();
+
+      localStorage.setItem('my_ai_keys', keysText);
+      localStorage.setItem('my_sb_url', url);
+      localStorage.setItem('my_sb_key', key);
+      localStorage.setItem('my_sys_prompt', prompt);
+
+      apiKeys = keysText.split('\n').map(k => k.trim()).filter(k => k);
+      if (url && key) initSupabase(url, key);
+
+      toggleSettings();
+      alert('Settings Saved Successfully!');
+    }
+
+    function initSupabase(url, key) {
+      try {
+        supabaseClient = supabase.createClient(url, key);
+        loadChatHistory();
+      } catch (err) {
+        console.error('Supabase init error:', err);
+      }
+    }
+
+    async function loadChatHistory() {
+      if (!supabaseClient) return;
+      const { data, error } = await supabaseClient.from('chats').select('id, title, created_at').order('created_at', { ascending: false });
+      if (data) {
+        const list = document.getElementById('chatHistoryList');
+        list.innerHTML = '';
+        data.forEach(c => {
+          const btn = document.createElement('button');
+          btn.className = "w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-[#1a1a1a] rounded-lg truncate transition";
+          btn.innerText = "💬 " + (c.title || "Untitled Chat");
+          btn.onclick = () => switchChat(c.id);
+          list.appendChild(btn);
+        });
+      }
+    }
+
+    function newChat() {
+      currentChatId = crypto.randomUUID();
+      messages = [];
+      document.getElementById('chatContainer').innerHTML = `
+        <div id="welcomeScreen" class="h-full flex flex-col items-center justify-center text-center space-y-4 pt-20">
+          <div class="w-12 h-12 rounded-full bg-[#171717] border border-[#262626] flex items-center justify-center">
+            <i data-lucide="sparkles" class="w-6 h-6 text-white"></i>
+          </div>
+          <h2 class="text-xl font-medium text-gray-200">How can I help you today?</h2>
+        </div>`;
+      lucide.createIcons();
+      toggleSidebar();
+    }
+
+    async function switchChat(id) {
+      if (!supabaseClient) return;
+      const { data } = await supabaseClient.from('chats').select('*').eq('id', id).single();
+      if (data) {
+        currentChatId = data.id;
+        messages = data.messages || [];
+        const container = document.getElementById('chatContainer');
+        container.innerHTML = '';
+        messages.forEach(m => renderMessage(m.role, m.content));
+        toggleSidebar();
+      }
+    }
+
+    function renderMessage(role, content) {
+      const welcome = document.getElementById('welcomeScreen');
+      if (welcome) welcome.remove();
+
+      const container = document.getElementById('chatContainer');
+      const div = document.createElement('div');
+      div.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
+
+      const bubble = document.createElement('div');
+      bubble.className = role === 'user' 
+        ? 'bg-[#262626] text-white px-4 py-2.5 rounded-3xl max-w-[85%] text-sm'
+        : 'text-[#ececec] max-w-full text-sm leading-relaxed prose prose-invert';
+      
+      bubble.innerHTML = marked.parse(content);
+      div.appendChild(bubble);
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // --- CORE EXECUTION ENGINE (Auto-Failover across 5 Keys) ---
+    async function sendMessage() {
+      const input = document.getElementById('promptInput');
+      const text = input.value.trim();
+      if (!text || apiKeys.length === 0) {
+        if (apiKeys.length === 0) alert('Please open Settings and enter at least one Gemini API key!');
+        return;
+      }
+
+      input.value = '';
+      autoResize(input);
+
+      messages.push({ role: 'user', content: text });
+      renderMessage('user', text);
+
+      // Thinking Indicator
+      const container = document.getElementById('chatContainer');
+      const thinkDiv = document.createElement('div');
+      thinkDiv.className = "text-xs text-gray-500 italic animate-pulse-slow flex items-center space-x-2";
+      thinkDiv.innerHTML = `<span>💭 MY AI is thinking...</span>`;
+      container.appendChild(thinkDiv);
+      container.scrollTop = container.scrollHeight;
+
+      let fullResponse = "";
+      let success = false;
+
+      // Sliding Window 60-turns
+      const payloadContents = messages.slice(-60).map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }]
+      }));
+
+      // Auto-Cascade Loop across 5 keys
+      for (let i = 0; i < apiKeys.length; i++) {
+        const key = apiKeys[(activeKeyIndex + i) % apiKeys.length];
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${key}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: payloadContents,
+              systemInstruction: { parts: [{ text: localStorage.getItem('my_sys_prompt') || "You are MY AI." }] },
+              safetySettings: [
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+              ]
+            })
+          });
+
+          if (!res.ok) continue;
+
+          thinkDiv.remove();
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          
+          const aiDiv = document.createElement('div');
+          aiDiv.className = "text-[#ececec] text-sm leading-relaxed prose prose-invert";
+          container.appendChild(aiDiv);
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const json = JSON.parse(line.substring(6));
+                  const chunkText = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                  fullResponse += chunkText;
+                  aiDiv.innerHTML = marked.parse(fullResponse);
+                  container.scrollTop = container.scrollHeight;
+                } catch(e) {}
+              }
+            }
+          }
+
+          activeKeyIndex = (activeKeyIndex + i) % apiKeys.length;
+          success = true;
+          break;
+        } catch (err) {
+          console.warn('Key failed, trying next...', err);
+        }
+      }
+
+      if (success) {
+        messages.push({ role: 'assistant', content: fullResponse });
+        // Save to Supabase
+        if (supabaseClient) {
+          const title = messages[0].content.substring(0, 26) + '...';
+          await supabaseClient.from('chats').upsert({
+            id: currentChatId,
+            title: title,
+            messages: messages
+          });
+          loadChatHistory();
+        }
+      } else {
+        thinkDiv.innerHTML = `<span class="text-red-500">Error: All API keys exhausted or failed. Please check your keys in Settings.</span>`;
+      }
+    }
+  </script>
+</body>
+</html>
