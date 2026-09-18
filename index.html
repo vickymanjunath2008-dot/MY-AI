@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>MY AI</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
@@ -28,9 +27,10 @@
 <body class="flex flex-col h-full bg-black text-[#ececec]">
 
   <!-- HEADER -->
-  <header class="h-16 border-b border-[#1f1f1f] flex items-center justify-between px-4 z-20 bg-black/90 backdrop-blur-md shrink-0">
-    <button onclick="toggleSidebar()" class="p-3 text-gray-300 hover:text-white rounded-xl active:bg-[#1a1a1a]">
-      <i data-lucide="menu" class="w-6 h-6"></i>
+  <header class="h-16 border-b border-[#1f1f1f] flex items-center justify-between px-4 z-20 bg-black shrink-0">
+    <!-- Menu Button (Native SVG) -->
+    <button onclick="toggleSidebar()" class="p-2.5 text-gray-300 active:bg-[#1a1a1a] rounded-xl flex items-center justify-center">
+      <svg class="w-6 h-6 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
     </button>
     
     <!-- Status Badges -->
@@ -39,35 +39,38 @@
       <span id="turnCounter" class="text-xs bg-[#171717] border border-[#2d2d2d] text-gray-400 px-2.5 py-1 rounded-full">0/60</span>
     </div>
 
-    <button onclick="toggleSettings()" class="p-3 text-gray-300 hover:text-white rounded-xl active:bg-[#1a1a1a]">
-      <i data-lucide="settings" class="w-6 h-6"></i>
+    <!-- Settings Button (Native SVG) -->
+    <button onclick="toggleSettings()" class="p-2.5 text-gray-300 active:bg-[#1a1a1a] rounded-xl flex items-center justify-center">
+      <svg class="w-6 h-6 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     </button>
   </header>
 
   <!-- CHAT AREA -->
-  <main id="chatContainer" class="flex-1 overflow-y-auto px-4 py-4 space-y-6 w-full max-w-2xl mx-auto">
+  <main id="chatContainer" class="flex-1 overflow-y-auto px-4 py-4 space-y-5 w-full max-w-2xl mx-auto">
     <div id="welcomeScreen" class="h-full flex flex-col items-center justify-center text-center space-y-3 pt-32">
       <div class="w-14 h-14 rounded-full bg-[#171717] border border-[#262626] flex items-center justify-center shadow-lg">
-        <i data-lucide="sparkles" class="w-7 h-7 text-white"></i>
+        <svg class="w-7 h-7 stroke-white fill-none stroke-2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
       </div>
       <h2 class="text-xl font-semibold text-gray-200">How can I help you today?</h2>
-      <p class="text-xs text-gray-500 max-w-xs">Enter your Gemini keys in settings to begin chatting.</p>
+      <p class="text-xs text-gray-500 max-w-xs">Tap settings (top right) to paste your Gemini API Key.</p>
     </div>
   </main>
 
-  <!-- MOBILE INPUT BAR (Fixed at Bottom, Large Touch Targets) -->
+  <!-- MOBILE INPUT BAR -->
   <footer class="p-3 bg-black border-t border-[#1a1a1a] w-full max-w-2xl mx-auto safe-bottom shrink-0">
-    <div class="flex items-end bg-[#171717] border border-[#2d2d2d] rounded-3xl px-3 py-2 shadow-2xl focus-within:border-gray-400">
-      <button onclick="toggleSettings()" class="p-2 text-gray-400 hover:text-white rounded-full">
-        <i data-lucide="paperclip" class="w-5 h-5"></i>
+    <div class="flex items-end bg-[#171717] border border-[#2d2d2d] rounded-3xl px-3 py-1.5 shadow-2xl focus-within:border-gray-400">
+      <!-- Attachment / Vault Button -->
+      <button onclick="toggleSettings()" class="p-2.5 text-gray-400 hover:text-white rounded-full">
+        <svg class="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
       </button>
       
-      <!-- Auto-expanding input: Enter creates new line, send button submits -->
+      <!-- Auto-expanding Input Area -->
       <textarea id="promptInput" rows="1" placeholder="Message MY AI..." 
-        class="flex-1 bg-transparent text-base text-white placeholder-gray-500 px-3 py-2 outline-none resize-none max-h-36 leading-normal"></textarea>
+        class="flex-1 bg-transparent text-base text-white placeholder-gray-500 px-3 py-2.5 outline-none resize-none max-h-36 leading-normal"></textarea>
 
+      <!-- Send Button -->
       <button id="sendBtn" onclick="sendMessage()" class="p-2.5 bg-white text-black rounded-full hover:bg-gray-200 active:scale-95 transition">
-        <i data-lucide="arrow-up" class="w-5 h-5 stroke-[2.5]"></i>
+        <svg class="w-4 h-4 fill-none stroke-current stroke-[3]" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
       </button>
     </div>
   </footer>
@@ -76,38 +79,44 @@
   <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/70 z-30 hidden backdrop-blur-sm"></div>
   <aside id="sidebar" class="fixed top-0 left-0 bottom-0 w-80 bg-[#0d0d0d] border-r border-[#1f1f1f] z-40 transform -translate-x-full transition-transform duration-300 flex flex-col">
     <div class="p-4 border-b border-[#1f1f1f] flex items-center justify-between">
-      <button onclick="newChat()" class="flex-1 flex items-center justify-center space-x-2 bg-[#1a1a1a] border border-[#2d2d2d] hover:bg-[#222] text-white py-2.5 rounded-xl text-sm font-medium">
-        <i data-lucide="plus" class="w-4 h-4"></i>
-        <span>New Chat</span>
+      <button onclick="newChat()" class="flex-1 flex items-center justify-center space-x-2 bg-[#1a1a1a] border border-[#2d2d2d] text-white py-2.5 rounded-xl text-sm font-medium active:bg-[#222]">
+        <span>+ New Chat</span>
       </button>
-      <button onclick="toggleSidebar()" class="ml-3 p-2 text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      <button onclick="toggleSidebar()" class="ml-3 p-2 text-gray-400 hover:text-white">✕</button>
     </div>
     
     <div class="flex-1 overflow-y-auto p-3 space-y-1" id="chatHistoryList"></div>
 
-    <!-- User Account Pill -->
+    <!-- User Account Pill & Account Switcher Trigger -->
     <div onclick="toggleSettings()" class="p-4 border-t border-[#1f1f1f] flex items-center space-x-3 bg-[#121212] cursor-pointer">
       <div id="userAvatar" class="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">VM</div>
       <div class="flex-1 truncate">
         <div id="userNameDisplay" class="font-medium text-sm text-white">Vikas M</div>
-        <div class="text-[11px] text-gray-500">Tap for Settings & Keys</div>
+        <div class="text-[11px] text-gray-500">Tap to Switch Account / Settings</div>
       </div>
     </div>
   </aside>
 
-  <!-- COMPREHENSIVE SETTINGS & VAULT DRAWER -->
+  <!-- SETTINGS & ACCOUNT SWITCHER MODAL -->
   <div id="settingsModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-end sm:items-center justify-center backdrop-blur-md">
     <div class="bg-[#121212] border-t sm:border border-[#262626] rounded-t-3xl sm:rounded-2xl w-full max-w-lg h-[90vh] flex flex-col overflow-hidden shadow-2xl">
       <div class="p-4 border-b border-[#1f1f1f] flex justify-between items-center shrink-0">
-        <h3 class="font-semibold text-base text-white">Settings & Vault</h3>
-        <button onclick="toggleSettings()" class="p-2 text-gray-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+        <h3 class="font-semibold text-base text-white">Settings & Accounts</h3>
+        <button onclick="toggleSettings()" class="p-2 text-gray-400 hover:text-white text-lg font-bold">✕</button>
       </div>
 
       <div class="p-5 overflow-y-auto space-y-6 text-sm flex-1">
-        <!-- Account Profile Section -->
-        <div class="bg-[#1a1a1a] p-3.5 rounded-xl border border-[#2d2d2d] space-y-2">
+        <!-- Account Switcher -->
+        <div class="bg-[#1a1a1a] p-4 rounded-xl border border-[#2d2d2d] space-y-3">
           <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Account Profile</label>
-          <input id="userNameInput" type="text" placeholder="Your Name (e.g. Vikas M)" class="w-full bg-[#121212] border border-[#333] rounded-lg p-2.5 text-white outline-none">
+          <div class="flex space-x-2">
+            <select id="accountSelector" onchange="switchAccountProfile(this.value)" class="flex-1 bg-[#121212] border border-[#333] rounded-lg p-2.5 text-white outline-none">
+              <option value="profile_1">Profile 1 (Vikas M)</option>
+              <option value="profile_2">Profile 2 (Creative / Alternate)</option>
+              <option value="profile_3">Profile 3 (Sandbox)</option>
+            </select>
+          </div>
+          <input id="userNameInput" type="text" placeholder="Profile Display Name" class="w-full bg-[#121212] border border-[#333] rounded-lg p-2.5 text-white outline-none">
         </div>
 
         <!-- Model Selection -->
@@ -117,12 +126,12 @@
             <option value="gemini-3.1-flash">gemini-3.1-flash (Recommended)</option>
             <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (High Quota)</option>
             <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite</option>
-            <option value="gemini-3.7-flash">gemini-3.7-flash (Experimental)</option>
-            <option value="gemini-3.8-flash">gemini-3.8-flash (Experimental)</option>
+            <option value="gemini-3.7-flash">gemini-3.7-flash</option>
+            <option value="gemini-3.8-flash">gemini-3.8-flash</option>
           </select>
         </div>
 
-        <!-- Temperature & Groundedness Slider -->
+        <!-- Temperature Slider -->
         <div class="space-y-2">
           <div class="flex justify-between text-xs">
             <span class="font-semibold text-gray-400 uppercase">Grounded Realism vs Creativity</span>
@@ -131,11 +140,11 @@
           <input id="tempSlider" type="range" min="0.1" max="1.0" step="0.05" value="0.6" class="w-full accent-white" oninput="document.getElementById('tempValue').innerText = this.value">
         </div>
 
-        <!-- Safety Filter (BLOCK_NONE) -->
+        <!-- Safety Filter -->
         <div class="space-y-2">
           <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Safety Policy</label>
           <select id="safetySelect" class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-3 text-white outline-none">
-            <option value="BLOCK_NONE">🔥 Unrestricted / Block None (Fiction & Action)</option>
+            <option value="BLOCK_NONE">🔥 Unrestricted / Block None</option>
             <option value="BLOCK_ONLY_HIGH">Block Only High Risk</option>
             <option value="BLOCK_MEDIUM_AND_ABOVE">Standard Filtering</option>
           </select>
@@ -143,8 +152,8 @@
 
         <!-- Story Bible / Knowledge Vault -->
         <div class="space-y-2">
-          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Story Bible / Lore Vault (Direct Paste)</label>
-          <textarea id="vaultInput" rows="4" placeholder="Paste your characters, world rules, Jersey Devil physiology, or past arcs here..." class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-3 text-xs text-white outline-none"></textarea>
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Story Bible / Knowledge Vault</label>
+          <textarea id="vaultInput" rows="4" placeholder="Paste your world lore, character sheets, or ongoing notes here..." class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-3 text-xs text-white outline-none"></textarea>
         </div>
 
         <!-- API Key Pool -->
@@ -153,23 +162,22 @@
           <textarea id="apiKeysInput" rows="3" placeholder="Paste your API keys here (one per line)..." class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-3 text-xs text-white outline-none"></textarea>
         </div>
 
-        <!-- Supabase Cloud Credentials -->
+        <!-- Supabase Credentials -->
         <div class="space-y-2">
-          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Supabase Persistence</label>
-          <input id="sbUrl" type="password" placeholder="Supabase Project URL" class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-lg p-2.5 text-xs text-white mb-2 outline-none">
+          <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Supabase Sync</label>
+          <input id="sbUrl" type="password" placeholder="Supabase URL" class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-lg p-2.5 text-xs text-white mb-2 outline-none">
           <input id="sbKey" type="password" placeholder="Supabase Anon Key" class="w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-lg p-2.5 text-xs text-white outline-none">
         </div>
       </div>
 
       <div class="p-4 border-t border-[#1f1f1f] bg-[#121212] shrink-0">
-        <button onclick="saveAllSettings()" class="w-full bg-white text-black font-semibold py-3 rounded-xl hover:bg-gray-200 active:scale-98 transition text-sm">Save & Apply Settings</button>
+        <button onclick="saveCurrentProfileSettings()" class="w-full bg-white text-black font-semibold py-3 rounded-xl hover:bg-gray-200 active:scale-98 transition text-sm">Save Profile & Apply</button>
       </div>
     </div>
   </div>
 
   <script>
-    lucide.createIcons();
-
+    let currentProfile = localStorage.getItem('active_profile') || 'profile_1';
     let messages = [];
     let currentChatId = crypto.randomUUID();
     let apiKeys = [];
@@ -177,18 +185,26 @@
     let supabaseClient = null;
 
     window.onload = () => {
-      loadStoredSettings();
+      document.getElementById('accountSelector').value = currentProfile;
+      loadProfile(currentProfile);
     };
 
-    function loadStoredSettings() {
-      const keys = localStorage.getItem('my_ai_keys') || '';
-      const url = localStorage.getItem('my_sb_url') || '';
-      const sbKey = localStorage.getItem('my_sb_key') || '';
-      const vault = localStorage.getItem('my_vault') || '';
-      const model = localStorage.getItem('my_model') || 'gemini-3.1-flash';
-      const temp = localStorage.getItem('my_temp') || '0.6';
-      const safety = localStorage.getItem('my_safety') || 'BLOCK_NONE';
-      const user = localStorage.getItem('my_user') || 'Vikas M';
+    function switchAccountProfile(profileKey) {
+      currentProfile = profileKey;
+      localStorage.setItem('active_profile', profileKey);
+      loadProfile(profileKey);
+    }
+
+    function loadProfile(pKey) {
+      const prefix = pKey + '_';
+      const keys = localStorage.getItem(prefix + 'keys') || '';
+      const url = localStorage.getItem(prefix + 'sb_url') || '';
+      const sbKey = localStorage.getItem(prefix + 'sb_key') || '';
+      const vault = localStorage.getItem(prefix + 'vault') || '';
+      const model = localStorage.getItem(prefix + 'model') || 'gemini-3.1-flash';
+      const temp = localStorage.getItem(prefix + 'temp') || '0.6';
+      const safety = localStorage.getItem(prefix + 'safety') || 'BLOCK_NONE';
+      const user = localStorage.getItem(prefix + 'user') || (pKey === 'profile_1' ? 'Vikas M' : 'Alt Account');
 
       document.getElementById('apiKeysInput').value = keys;
       document.getElementById('sbUrl').value = url;
@@ -207,7 +223,8 @@
       if (url && sbKey) initSupabase(url, sbKey);
     }
 
-    function saveAllSettings() {
+    function saveCurrentProfileSettings() {
+      const prefix = currentProfile + '_';
       const keys = document.getElementById('apiKeysInput').value;
       const url = document.getElementById('sbUrl').value.trim();
       const sbKey = document.getElementById('sbKey').value.trim();
@@ -217,18 +234,18 @@
       const safety = document.getElementById('safetySelect').value;
       const user = document.getElementById('userNameInput').value.trim() || 'Vikas M';
 
-      localStorage.setItem('my_ai_keys', keys);
-      localStorage.setItem('my_sb_url', url);
-      localStorage.setItem('my_sb_key', sbKey);
-      localStorage.setItem('my_vault', vault);
-      localStorage.setItem('my_model', model);
-      localStorage.setItem('my_temp', temp);
-      localStorage.setItem('my_safety', safety);
-      localStorage.setItem('my_user', user);
+      localStorage.setItem(prefix + 'keys', keys);
+      localStorage.setItem(prefix + 'sb_url', url);
+      localStorage.setItem(prefix + 'sb_key', sbKey);
+      localStorage.setItem(prefix + 'vault', vault);
+      localStorage.setItem(prefix + 'model', model);
+      localStorage.setItem(prefix + 'temp', temp);
+      localStorage.setItem(prefix + 'safety', safety);
+      localStorage.setItem(prefix + 'user', user);
 
-      loadStoredSettings();
+      loadProfile(currentProfile);
       toggleSettings();
-      alert('Settings Saved Successfully!');
+      alert(`Settings Saved for ${user}!`);
     }
 
     function toggleSidebar() {
@@ -245,7 +262,7 @@
         supabaseClient = supabase.createClient(url, key);
         loadChatHistory();
       } catch (err) {
-        console.error('Supabase error:', err);
+        console.error('Supabase init error:', err);
       }
     }
 
@@ -269,11 +286,6 @@
       const count = messages.length;
       const badge = document.getElementById('turnCounter');
       badge.innerText = `${count}/60`;
-      if (count >= 55) {
-        badge.className = "text-xs bg-amber-950/60 border border-amber-500/50 text-amber-400 px-2.5 py-1 rounded-full animate-pulse";
-      } else {
-        badge.className = "text-xs bg-[#171717] border border-[#2d2d2d] text-gray-400 px-2.5 py-1 rounded-full";
-      }
     }
 
     function newChat() {
@@ -283,11 +295,10 @@
       document.getElementById('chatContainer').innerHTML = `
         <div id="welcomeScreen" class="h-full flex flex-col items-center justify-center text-center space-y-3 pt-32">
           <div class="w-14 h-14 rounded-full bg-[#171717] border border-[#262626] flex items-center justify-center shadow-lg">
-            <i data-lucide="sparkles" class="w-7 h-7 text-white"></i>
+            <svg class="w-7 h-7 stroke-white fill-none stroke-2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
           </div>
           <h2 class="text-xl font-semibold text-gray-200">How can I help you today?</h2>
         </div>`;
-      lucide.createIcons();
       toggleSidebar();
     }
 
@@ -329,7 +340,7 @@
       const text = input.value.trim();
       if (!text) return;
       if (apiKeys.length === 0) {
-        alert('Please open Settings and add your Gemini API Key!');
+        alert('Please open Settings and enter your Gemini API Key!');
         toggleSettings();
         return;
       }
@@ -344,16 +355,16 @@
       const container = document.getElementById('chatContainer');
       const thinkDiv = document.createElement('div');
       thinkDiv.className = "text-xs text-gray-500 italic flex items-center space-x-2";
-      thinkDiv.innerHTML = `<span>💭 Analyzing scene continuity...</span>`;
+      thinkDiv.innerHTML = `<span>💭 Analyzing context...</span>`;
       container.appendChild(thinkDiv);
       container.scrollTop = container.scrollHeight;
 
-      // 60-Turn Sliding Window + Vault Payload
-      const vaultLore = localStorage.getItem('my_vault') || '';
+      const prefix = currentProfile + '_';
+      const vaultLore = localStorage.getItem(prefix + 'vault') || '';
       let payload = [];
       if (vaultLore) {
         payload.push({ role: 'user', parts: [{ text: `[LORE VAULT & STORY BIBLE]:\n${vaultLore}` }] });
-        payload.push({ role: 'model', parts: [{ text: "Understood. I will strictly obey the lore vault and continuity." }] });
+        payload.push({ role: 'model', parts: [{ text: "Understood. Maintaining continuity with the vault." }] });
       }
 
       messages.slice(-60).forEach(m => {
@@ -363,14 +374,13 @@
         });
       });
 
-      const modelName = localStorage.getItem('my_model') || 'gemini-3.1-flash';
-      const tempVal = parseFloat(localStorage.getItem('my_temp') || '0.6');
-      const safetyVal = localStorage.getItem('my_safety') || 'BLOCK_NONE';
+      const modelName = localStorage.getItem(prefix + 'model') || 'gemini-3.1-flash';
+      const tempVal = parseFloat(localStorage.getItem(prefix + 'temp') || '0.6');
+      const safetyVal = localStorage.getItem(prefix + 'safety') || 'BLOCK_NONE';
 
       let fullResponse = "";
       let success = false;
 
-      // Failover across API keys
       for (let i = 0; i < apiKeys.length; i++) {
         const key = apiKeys[(activeKeyIndex + i) % apiKeys.length];
         try {
@@ -416,4 +426,26 @@
             }
           }
 
-         
+          activeKeyIndex = (activeKeyIndex + i) % apiKeys.length;
+          success = true;
+          break;
+        } catch(err) {
+          console.warn('Failover triggered...', err);
+        }
+      }
+
+      if (success) {
+        messages.push({ role: 'assistant', content: fullResponse });
+        updateTurnCounter();
+        if (supabaseClient) {
+          const title = messages[0].content.substring(0, 26) + '...';
+          await supabaseClient.from('chats').upsert({ id: currentChatId, title, messages });
+          loadChatHistory();
+        }
+      } else {
+        thinkDiv.innerHTML = `<span class="text-red-500 text-xs">Error: All API keys exhausted or failed.</span>`;
+      }
+    }
+  </script>
+</body>
+</html>
