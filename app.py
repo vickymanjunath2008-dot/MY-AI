@@ -7,7 +7,7 @@ from google.genai import types
 # -------------------------------------------------------------
 st.set_page_config(
     page_title="MY AI",
-    page_icon="🐺",
+    page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -27,16 +27,6 @@ st.markdown("""
         color: #ECECEC;
         border-radius: 8px;
     }
-    .badge {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-        font-weight: bold;
-        background-color: #2e382e;
-        color: #4ade80;
-        margin-bottom: 10px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -47,26 +37,48 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "active_key_index" not in st.session_state:
     st.session_state.active_key_index = 0
-if "active_model_name" not in st.session_state:
-    st.session_state.active_model_name = "gemini-3.8-flash"
+if "available_models" not in st.session_state:
+    st.session_state.available_models = []
 
 # -------------------------------------------------------------
-# 3. SIDEBAR: RUN SETTINGS & STORY VAULT
+# 3. SIDEBAR: RUN SETTINGS & KEY POOL
 # -------------------------------------------------------------
 with st.sidebar:
     st.title("Run settings")
 
-    # --- 3.X MODELS SELECTION ---
-    model_options = [
-        "⚡ Auto-Cascade (3.8 ➔ 3.7 ➔ 3.1 ➔ 3.1-Lite)",
-        "gemini-3.8-flash",
-        "gemini-3.7-flash",
-        "gemini-3.5-flash-lite",
-        "gemini-3.1-flash",
-        "gemini-3.1-flash-lite"
-    ]
-    selected_model_option = st.selectbox("Model", model_options, index=0)
-    st.caption("Next-gen 3.x Flash tier with high speed, deep context, and auto-failover.")
+    # --- 5-KEY POOL ENGINE ---
+    with st.expander("🔑 API Key Pool (5 Projects)", expanded=True):
+        key1 = st.text_input("Key 1 (Primary)", type="password")
+        key2 = st.text_input("Key 2 (Backup)", type="password")
+        key3 = st.text_input("Key 3 (Backup)", type="password")
+        key4 = st.text_input("Key 4 (Backup)", type="password")
+        key5 = st.text_input("Key 5 (Backup)", type="password")
+        
+        api_pool = [k for k in [key1, key2, key3, key4, key5] if k.strip()]
+        
+        key_modes = ["🔄 Auto-Failover (Smart)"] + [f"📌 Force Key {i+1}" for i in range(len(api_pool))]
+        selected_key_mode = st.selectbox("Key Mode", key_modes if api_pool else ["No Keys Added"])
+
+    # --- AUTO-DETECT LIVE GOOGLE MODELS ---
+    live_models = []
+    if api_pool:
+        try:
+            client_probe = genai.Client(api_key=api_pool[0])
+            for m in client_probe.models.list():
+                name = m.name.replace("models/", "")
+                if "gemini" in name:
+                    live_models.append(name)
+            if live_models:
+                st.session_state.available_models = sorted(live_models)
+        except Exception:
+            pass
+
+    # Fallback list if probe is still loading
+    fallback_models = ["gemini-3.1-flash", "gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3.7-flash", "gemini-3.8-flash"]
+    dropdown_models = st.session_state.available_models if st.session_state.available_models else fallback_models
+
+    selected_model = st.selectbox("Model (Live from your Google Account)", dropdown_models, index=0)
+    st.caption("Live models available from your Google AI Studio account.")
 
     # --- SYSTEM INSTRUCTIONS ---
     st.write("**System instructions**")
@@ -106,21 +118,6 @@ with st.sidebar:
         sex_val = st.select_slider("Sexually Explicit", options=safety_levels, value="Block none")
         danger_val = st.select_slider("Dangerous Content", options=safety_levels, value="Block none")
 
-    st.divider()
-
-    # --- 5-KEY POOL ENGINE ---
-    with st.expander("🔑 API Key Pool (5 Projects)", expanded=True):
-        key1 = st.text_input("Key 1 (Primary)", type="password")
-        key2 = st.text_input("Key 2 (Backup)", type="password")
-        key3 = st.text_input("Key 3 (Backup)", type="password")
-        key4 = st.text_input("Key 4 (Backup)", type="password")
-        key5 = st.text_input("Key 5 (Backup)", type="password")
-        
-        api_pool = [k for k in [key1, key2, key3, key4, key5] if k.strip()]
-        
-        key_modes = ["🔄 Auto-Failover (Smart)"] + [f"📌 Force Key {i+1}" for i in range(len(api_pool))]
-        selected_key_mode = st.selectbox("Key Mode", key_modes if api_pool else ["No Keys Added"])
-
     # --- MILESTONE GAUGE (55 / 60 Turns) ---
     turn_count = len(st.session_state.messages)
     st.divider()
@@ -128,19 +125,16 @@ with st.sidebar:
     st.progress(min(turn_count / 60.0, 1.0))
 
 # -------------------------------------------------------------
-# 4. CHAT DISPLAY & STATUS BADGE
+# 4. CHAT DISPLAY & STATUS INDICATOR
 # -------------------------------------------------------------
-st.markdown(
-    f'<div class="badge">🟢 Live: {st.session_state.active_model_name} | Active Key: #{st.session_state.active_key_index + 1}</div>', 
-    unsafe_allow_html=True
-)
+st.info(f"Live Model: {selected_model} | Active Key: #{st.session_state.active_key_index + 1}")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # -------------------------------------------------------------
-# 5. EXECUTION & SMART 503-CASCADE ENGINE
+# 5. EXECUTION ENGINE (60-Message Window)
 # -------------------------------------------------------------
 if not api_pool:
     st.info("👈 Open the sidebar (tap > top left) and paste at least Key 1 to begin!", icon="🔑")
@@ -151,7 +145,7 @@ if prompt := st.chat_input("Message MY AI..."):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Safety conversions
+    # Convert Safety Sliders
     threshold_map = {
         "Block none": types.HarmBlockThreshold.BLOCK_NONE,
         "Block few": types.HarmBlockThreshold.BLOCK_ONLY_HIGH,
@@ -166,19 +160,6 @@ if prompt := st.chat_input("Message MY AI..."):
         types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold=threshold_map[danger_val]),
     ]
 
-    # Models list for Auto-Cascade
-    if "Auto-Cascade" in selected_model_option:
-        models_to_try = [
-            "gemini-3.8-flash", 
-            "gemini-3.7-flash", 
-            "gemini-3.1-flash", 
-            "gemini-3.5-flash-lite", 
-            "gemini-3.1-flash-lite"
-        ]
-    else:
-        # If user picked a specific model, prioritize it first, then cascade if it hits 503/429
-        models_to_try = [selected_model_option, "gemini-3.1-flash", "gemini-3.1-flash-lite"]
-
     # Key Sequence
     if "Force Key" in selected_key_mode:
         target_idx = int(selected_key_mode.split("Key ")[1]) - 1
@@ -186,7 +167,7 @@ if prompt := st.chat_input("Message MY AI..."):
     else:
         keys_to_try = api_pool[st.session_state.active_key_index:] + api_pool[:st.session_state.active_key_index]
 
-    # 60-Message Window Payload
+    # 60-Message Sliding Window
     ACTIVE_WINDOW = 60
     recent_turns = st.session_state.messages[-ACTIVE_WINDOW:]
     
@@ -201,38 +182,33 @@ if prompt := st.chat_input("Message MY AI..."):
     last_error = ""
 
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
+        with st.spinner("Writing..."):
             for current_key in keys_to_try:
-                if success:
+                try:
+                    client = genai.Client(api_key=current_key)
+                    config = types.GenerateContentConfig(
+                        safety_settings=safety_settings,
+                        system_instruction=system_instruction
+                    )
+                    resp = client.models.generate_content(
+                        model=selected_model,
+                        contents=full_payload,
+                        config=config
+                    )
+                    response_text = resp.text
+                    st.session_state.active_key_index = api_pool.index(current_key)
+                    success = True
                     break
-                client = genai.Client(api_key=current_key)
-                
-                for model_candidate in models_to_try:
-                    try:
-                        config = types.GenerateContentConfig(
-                            safety_settings=safety_settings,
-                            system_instruction=system_instruction
-                        )
-                        resp = client.models.generate_content(
-                            model=model_candidate,
-                            contents=full_payload,
-                            config=config
-                        )
-                        response_text = resp.text
-                        st.session_state.active_model_name = model_candidate
-                        st.session_state.active_key_index = api_pool.index(current_key)
-                        success = True
+                except Exception as e:
+                    last_error = str(e)
+                    # If 429 Quota Exceeded, silently try next key!
+                    if any(err in last_error for err in ["429", "RESOURCE_EXHAUSTED"]):
+                        continue
+                    else:
                         break
-                    except Exception as e:
-                        last_error = str(e)
-                        # If 503 (Overloaded) or 429 (Rate Limit) -> Silently drop to next 3.x tier!
-                        if any(code in last_error for code in ["503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "404", "NOT_FOUND"]):
-                            continue
-                        else:
-                            continue
 
             if success and response_text:
                 st.markdown(response_text)
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
             else:
-                st.error(f"Error from Google servers: {last_error}")
+                st.error(f"Error from Google: {last_error}")
