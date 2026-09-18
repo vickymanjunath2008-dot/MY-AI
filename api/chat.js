@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const config = {
   runtime: "nodejs",
@@ -12,24 +12,22 @@ export default async function handler(req, res) {
   const {
     messages = [],
     apiKeys = [],
-    model = "gemini-2.0-flash",
+    model = "gemini-1.5-flash",
     systemInstruction = "",
     temperature = 0.6,
     safetyLevel = "BLOCK_NONE",
-    vaultLore = "",
-    thinkingBudget = 0
+    vaultLore = ""
   } = req.body;
 
   if (!apiKeys || apiKeys.length === 0) {
     return res.status(400).json({ error: "No API keys provided." });
   }
 
-  // Set SSE headers for fluid word-by-word streaming
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
 
-  // 1. Assemble Payload: Lore Vault + Capped 60-turn Window
+  // 1. Assemble History: Lore Vault + Capped 60-turn Window
   const contents = [];
   
   if (vaultLore && vaultLore.trim()) {
@@ -43,7 +41,6 @@ export default async function handler(req, res) {
     });
   }
 
-  // Enforce strict 60-message sliding window
   const recentMessages = messages.slice(-60);
   for (const msg of recentMessages) {
     contents.push({
@@ -60,7 +57,7 @@ export default async function handler(req, res) {
     { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: safetyLevel }
   ];
 
-  // 3. Failover Loop across all 5 Keys
+  // 3. Failover Loop across Keys
   let success = false;
   let lastError = null;
 
@@ -69,31 +66,20 @@ export default async function handler(req, res) {
     if (!key) continue;
 
     try {
-      const ai = new GoogleGenAI({ apiKey: key });
-      
-      const generateConfig = {
-        temperature: parseFloat(temperature) || 0.6,
-        safetySettings
-      };
-
-      if (systemInstruction && systemInstruction.trim()) {
-        generateConfig.systemInstruction = systemInstruction.trim();
-      }
-
-      // Optional Thinking Level Budget
-      if (thinkingBudget > 0) {
-        generateConfig.thinkingConfig = { thinkingBudget: parseInt(thinkingBudget, 10) };
-      }
-
-      const responseStream = await ai.models.generateContentStream({
-        model,
-        contents,
-        config: generateConfig
+      const ai = new GoogleGenerativeAI(key);
+      const generativeModel = ai.getGenerativeModel({
+        model: model,
+        systemInstruction: systemInstruction || undefined,
+        generationConfig: { temperature: parseFloat(temperature) || 0.6 },
+        safetySettings: safetySettings
       });
 
-      // Stream text chunks back to your phone screen
-      for await (const chunk of responseStream) {
-        const text = chunk.text;
+      const responseStream = await generativeModel.generateContentStream({
+        contents: contents
+      });
+
+      for await (const chunk of responseStream.stream) {
+        const text = chunk.text();
         if (text) {
           res.write(`data: ${JSON.stringify({ text, activeKeyIndex: i })}\n\n`);
         }
@@ -105,14 +91,14 @@ export default async function handler(req, res) {
       break;
 
     } catch (err) {
-      console.warn(`Key #${i + 1} failed, rolling to next key:`, err.message);
+      console.warn(`Key #${i + 1} failed:`, err.message);
       lastError = err.message;
       continue;
     }
   }
 
   if (!success) {
-    res.write(`data: ${JSON.stringify({ error: lastError || "All API keys in pool failed." })}\n\n`);
+    res.write(`data: ${JSON.stringify({ error: lastError || "All API keys failed." })}\n\n`);
     res.write("data: [DONE]\n\n");
     res.end();
   }
