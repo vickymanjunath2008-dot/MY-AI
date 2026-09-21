@@ -18,11 +18,11 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
   const rawMessages = body.messages || [];
-  const requestedModel = body.model || "gemini-2.0-flash";
+  const requestedModel = body.model || "gemini-3.7-flash";
   const temperature = parseFloat(body.temperature) ?? 0.6;
   const stream = body.stream !== false;
 
-  // 2. EXTRACT DYNAMIC KEY POOL (Accepts comma-separated keys in Authorization header)
+  // 2. EXTRACT DYNAMIC KEY POOL
   const authHeader = req.headers.authorization || "";
   const keyPool = authHeader
     .replace("Bearer ", "")
@@ -89,8 +89,11 @@ export default async function handler(req, res) {
 
   for (let i = 0; i < keyPool.length; i++) {
     const currentKey = keyPool[i];
+    
+    // ---> THIS IS THE BUG FIX <---
     const action = stream ? "streamGenerateContent?alt=sse" : "generateContent";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${requestedModel}:${action}&key=${currentKey}`;
+    const separator = stream ? "&" : "?";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${requestedModel}:${action}${separator}key=${currentKey}`;
 
     try {
       const googleRes = await fetch(url, {
@@ -103,7 +106,6 @@ export default async function handler(req, res) {
         const errorData = await googleRes.json().catch(() => ({}));
         lastError = errorData.error?.message || `HTTP ${googleRes.status}`;
         console.warn(`Key #${i + 1} hit error: ${lastError}. Silently rolling to next key...`);
-        // If 429 (Rate Limit) or 503 (Overload), loop immediately to next key!
         continue;
       }
 
@@ -167,7 +169,7 @@ export default async function handler(req, res) {
         break;
 
       } else {
-        // --- NON-STREAMING RESPONSE ---
+        // --- NON-STREAMING RESPONSE (Used for Title Generation) ---
         const data = await googleRes.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
