@@ -1,8 +1,9 @@
 {
-  "name": "my-ai",
+  "name": "my-ai-gateway",
   "version": "1.0.0",
   "type": "module",
-  "dependencies": {
-    "@google/generative-ai": "^0.21.0"
+  "description": "Production multi-key failover proxy for LibreChat and Google Gemini",
+  "engines": {
+    "node": ">=18.x"
   }
 }
